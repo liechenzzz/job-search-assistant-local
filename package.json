@@ -1,0 +1,36 @@
+{
+  "name": "job-ops",
+  "private": true,
+  "workspaces": [
+    "orchestrator",
+    "docs-site",
+    "extractors/*",
+    "shared"
+  ],
+  "scripts": {
+    "test:all": "npm --workspace orchestrator run test:run",
+    "check:types:shared": "npm --workspace shared run check:types",
+    "check:types": "npm --workspace shared run check:types && npm --workspace orchestrator run check:types",
+    "check:types:ukvisajobs": "npm --workspace ukvisajobs-extractor run check:types",
+    "check:all": "./orchestrator/node_modules/.bin/biome ci .",
+    "format:all": "./orchestrator/node_modules/.bin/biome format . --write",
+    "check:types:gradcracker": "npm --workspace gradcracker-extractor run check:types",
+    "docs:dev": "npm --workspace docs-site run start",
+    "docs:build": "npm --workspace docs-site run build",
+    "check:docs": "npm --workspace docs-site run build",
+    "docs:serve": "npm --workspace docs-site run serve",
+    "docs:version": "npm --workspace docs-site run docs:version",
+    "check:live-bundle": "node ./scripts/check-live-bundle.mjs",
+    "release:set-version": "node ./scripts/set-orchestrator-version.mjs",
+    "knip": "knip"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "knip": "^5.83.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3"
+  },
+  "volta": {
+    "node": "22.22.1"
+  }
+}

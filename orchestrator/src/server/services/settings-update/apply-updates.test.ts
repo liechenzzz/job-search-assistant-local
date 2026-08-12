@@ -1,0 +1,155 @@
+import type { ResumeProjectsSettingsInput } from "@shared/settings-schema";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { applySettingsUpdates } from "./apply-updates";
+
+vi.mock("@server/repositories/settings", () => ({
+  setSetting: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@server/services/envSettings", () => ({
+  normalizeEnvInput: (value: string | null | undefined) => {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+  },
+}));
+
+vi.mock("@server/services/profile", () => ({
+  getProfile: vi.fn(),
+}));
+
+vi.mock("@server/services/resumeProjects", () => ({
+  extractProjectsFromProfile: vi.fn(),
+  normalizeResumeProjectsSettings: vi.fn(),
+}));
+
+describe("applySettingsUpdates", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("applies representative handlers without mutating process env", async () => {
+    const settingsRepo = await import("@server/repositories/settings");
+
+    const plan = await applySettingsUpdates({
+      model: "gpt-4o-mini",
+      ukvisajobsMaxJobs: 42,
+      adzunaMaxJobsPerTerm: 25,
+      searchTerms: ["backend", "platform"],
+      llmProvider: "openai",
+      adzunaAppId: "app-id",
+      adzunaAppKey: "app-key",
+    });
+
+    expect(settingsRepo.setSetting).toHaveBeenCalledTimes(7);
+    expect(vi.mocked(settingsRepo.setSetting).mock.calls).toEqual(
+      expect.arrayContaining([
+        ["model", "gpt-4o-mini"],
+        ["ukvisajobsMaxJobs", "42"],
+        ["adzunaMaxJobsPerTerm", "25"],
+        ["searchTerms", '["backend","platform"]'],
+        ["llmProvider", "openai"],
+        ["adzunaAppId", "app-id"],
+        ["adzunaAppKey", "app-key"],
+      ]),
+    );
+    expect(plan.shouldRefreshBackupScheduler).toBe(false);
+    expect(plan.shouldClearRxResumeCaches).toBe(false);
+  });
+
+  it("marks backup scheduler refresh when backup settings are changed", async () => {
+    const settingsRepo = await import("@server/repositories/settings");
+
+    const plan = await applySettingsUpdates({
+      backupEnabled: false,
+      backupHour: 4,
+    });
+
+    expect(vi.mocked(settingsRepo.setSetting).mock.calls).toEqual(
+      expect.arrayContaining([
+        ["backupEnabled", "0"],
+        ["backupHour", "4"],
+      ]),
+    );
+    expect(plan.shouldRefreshBackupScheduler).toBe(true);
+    expect(plan.shouldClearRxResumeCaches).toBe(false);
+  });
+
+  it("resolves and persists normalized resumeProjects", async () => {
+    const settingsRepo = await import("@server/repositories/settings");
+    const profileService = await import("@server/services/profile");
+    const resumeProjectsService = await import(
+      "@server/services/resumeProjects"
+    );
+
+    const input: ResumeProjectsSettingsInput = {
+      maxProjects: 2,
+      lockedProjectIds: ["proj-1"],
+      aiSelectableProjectIds: ["proj-2"],
+    };
+    const normalized: ResumeProjectsSettingsInput = {
+      maxProjects: 1,
+      lockedProjectIds: ["proj-1"],
+      aiSelectableProjectIds: [],
+    };
+
+    vi.mocked(profileService.getProfile).mockResolvedValue({} as any);
+    vi.mocked(resumeProjectsService.extractProjectsFromProfile).mockReturnValue(
+      {
+        catalog: [{ id: "proj-1" }, { id: "proj-2" }] as any,
+        selectionItems: [],
+      },
+    );
+    vi.mocked(
+      resumeProjectsService.normalizeResumeProjectsSettings,
+    ).mockReturnValue(normalized as any);
+
+    await applySettingsUpdates({ resumeProjects: input });
+
+    expect(profileService.getProfile).toHaveBeenCalledOnce();
+    const allowedSet = vi.mocked(
+      resumeProjectsService.normalizeResumeProjectsSettings,
+    ).mock.calls[0]?.[1];
+    expect(allowedSet).toBeInstanceOf(Set);
+    expect(Array.from(allowedSet as Set<string>).sort()).toEqual([
+      "proj-1",
+      "proj-2",
+    ]);
+    expect(vi.mocked(settingsRepo.setSetting)).toHaveBeenCalledWith(
+      "resumeProjects",
+      JSON.stringify(normalized),
+    );
+  });
+
+  it("marks Reactive Resume cache clearing when RxResume settings change", async () => {
+    const settingsRepo = await import("@server/repositories/settings");
+
+    const plan = await applySettingsUpdates({
+      rxresumeUrl: "https://resume.example.com",
+      rxresumeBaseResumeId: "resume-123",
+    });
+
+    expect(vi.mocked(settingsRepo.setSetting).mock.calls).toEqual(
+      expect.arrayContaining([
+        ["rxresumeUrl", "https://resume.example.com"],
+        ["rxresumeBaseResumeId", "resume-123"],
+      ]),
+    );
+    expect(plan.shouldClearRxResumeCaches).toBe(true);
+    expect(plan.shouldRefreshBackupScheduler).toBe(false);
+  });
+
+  it("clears legacy jobspyLocation when searchCities is updated", async () => {
+    const settingsRepo = await import("@server/repositories/settings");
+
+    await applySettingsUpdates({
+      searchCities: null,
+    });
+
+    expect(vi.mocked(settingsRepo.setSetting).mock.calls).toEqual(
+      expect.arrayContaining([
+        ["searchCities", null],
+        ["jobspyLocation", null],
+      ]),
+    );
+  });
+});

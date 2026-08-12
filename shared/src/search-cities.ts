@@ -1,0 +1,150 @@
+import { normalizeCountryKey } from "./location-support.js";
+
+const LOCATION_ALIASES: Record<string, string> = {
+  uk: "united kingdom",
+  us: "united states",
+  usa: "united states",
+};
+
+const COUNTRY_LOCATION_VARIANTS: Record<string, string[]> = {
+  "united kingdom": [
+    "uk",
+    "great britain",
+    "britain",
+    "england",
+    "scotland",
+    "wales",
+    "northern ireland",
+  ],
+  "united states": ["us", "usa", "united states of america"],
+};
+
+export function normalizeLocationToken(
+  value: string | null | undefined,
+): string {
+  const normalized = value?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+  if (!normalized) return "";
+  return LOCATION_ALIASES[normalized] ?? normalized;
+}
+
+export function parseSearchCitiesSetting(
+  value: string | null | undefined,
+): string[] {
+  const trimmed = value?.trim();
+  if (!trimmed) return [];
+  const split = trimmed.includes("|")
+    ? trimmed.split("|")
+    : trimmed.includes("\n")
+      ? trimmed.split("\n")
+      : [trimmed];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of split) {
+    const normalized = raw.trim();
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+
+interface ResolveSearchCitiesOptions {
+  list?: string[] | null;
+  single?: string | null;
+  env?: string | null;
+  fallback?: string | null;
+}
+
+export function resolveSearchCities(
+  options: ResolveSearchCitiesOptions,
+): string[] {
+  // Priority order:
+  // 1) explicit list (searchCities array in config)
+  // 2) explicit single value
+  // 3) environment fallback
+  // 4) final hardcoded/default fallback
+  if (options.list && options.list.length > 0) {
+    const parsedList = parseSearchCitiesSetting(options.list.join("|"));
+    if (parsedList.length > 0) return parsedList;
+  }
+
+  const fallbackCandidates = [options.single, options.env, options.fallback];
+  for (const candidate of fallbackCandidates) {
+    if (candidate === null || candidate === undefined) continue;
+    const parsed = parseSearchCitiesSetting(candidate);
+    if (parsed.length > 0) return parsed;
+  }
+
+  return [];
+}
+
+export function serializeSearchCitiesSetting(cities: string[]): string | null {
+  if (cities.length === 0) return null;
+  return cities.join("|");
+}
+
+export function shouldApplyStrictCityFilter(
+  city: string,
+  country: string,
+): boolean {
+  const normalizedCity = normalizeLocationToken(city);
+  const normalizedCountry = normalizeCountryKey(country);
+  if (!normalizedCity || !normalizedCountry) return false;
+  return normalizedCity !== normalizedCountry;
+}
+
+export function matchesRequestedCity(
+  jobLocation: string | undefined,
+  requestedCity: string,
+): boolean {
+  return matchesRequestedLocationTokens(jobLocation, requestedCity);
+}
+
+function matchesRequestedLocationTokens(
+  jobLocation: string | undefined,
+  requestedLocation: string,
+): boolean {
+  const normalizedJobLocation = normalizeLocationToken(jobLocation)
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  const normalizedRequestedLocation = normalizeLocationToken(requestedLocation)
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  if (!normalizedJobLocation || !normalizedRequestedLocation) return false;
+
+  const jobTokens = normalizedJobLocation.split(" ");
+  const requestedTokens = normalizedRequestedLocation.split(" ");
+  if (requestedTokens.length > jobTokens.length) return false;
+
+  for (let i = 0; i <= jobTokens.length - requestedTokens.length; i += 1) {
+    let matches = true;
+    for (let j = 0; j < requestedTokens.length; j += 1) {
+      if (jobTokens[i + j] !== requestedTokens[j]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return true;
+  }
+
+  return false;
+}
+
+export function matchesRequestedCountry(
+  jobLocation: string | undefined,
+  requestedCountry: string,
+): boolean {
+  const normalizedCountry = normalizeCountryKey(requestedCountry);
+  if (!normalizedCountry) return false;
+
+  const candidates = [
+    normalizedCountry,
+    ...(COUNTRY_LOCATION_VARIANTS[normalizedCountry] ?? []),
+  ];
+
+  return candidates.some((candidate) =>
+    matchesRequestedLocationTokens(jobLocation, candidate),
+  );
+}

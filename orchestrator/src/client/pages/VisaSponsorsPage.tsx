@@ -1,0 +1,594 @@
+import { formatCountryLabel } from "@shared/location-support.js";
+import type {
+  VisaSponsor,
+  VisaSponsorSearchResult,
+  VisaSponsorStatusResponse,
+} from "@shared/types.js";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Download,
+  FileSpreadsheet,
+  Loader2,
+  MapPin,
+  Search,
+  Shield,
+  X,
+} from "lucide-react";
+import type React from "react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { useQueryErrorToast } from "@/client/hooks/useQueryErrorToast";
+import { queryKeys } from "@/client/lib/queryKeys";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Drawer, DrawerClose, DrawerContent } from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn, formatDateTime } from "@/lib/utils";
+import * as api from "../api";
+import {
+  DetailPanel,
+  EmptyState,
+  ListItem,
+  ListPanel,
+  PageHeader,
+  PageMain,
+  ScoreMeter,
+  SplitLayout,
+  StatusIndicator,
+} from "../components";
+
+const getScoreTokens = (score: number) => {
+  if (score >= 90)
+    return {
+      badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+    };
+  if (score >= 70)
+    return { badge: "border-amber-500/30 bg-amber-500/10 text-amber-200" };
+  if (score >= 50)
+    return { badge: "border-orange-500/30 bg-orange-500/10 text-orange-200" };
+  return { badge: "border-rose-500/30 bg-rose-500/10 text-rose-200" };
+};
+
+const ALL_SOURCES_VALUE = "__all_sources__";
+
+const getSearchScopeLabel = (countryLabel: string) =>
+  countryLabel === "All sources" ? "all sources" : `the ${countryLabel} source`;
+
+const getResultKey = (
+  result: Pick<VisaSponsorSearchResult, "providerId" | "sponsor">,
+) => `${result.providerId}::${result.sponsor.organisationName}`;
+
+export const VisaSponsorsPage: React.FC = () => {
+  const queryClient = useQueryClient();
+  // State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [selectedResultKey, setSelectedResultKey] = useState<string | null>(
+    null,
+  );
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+
+  // Loading states
+  const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(min-width: 1024px)").matches
+      : false,
+  );
+
+  const statusQuery = useQuery<VisaSponsorStatusResponse>({
+    queryKey: queryKeys.visaSponsors.status(),
+    queryFn: api.getVisaSponsorStatus,
+  });
+  const status = statusQuery.data ?? null;
+  useQueryErrorToast(statusQuery.error, "Failed to fetch status");
+  const statusProviders = status?.providers ?? [];
+  const providerOptions = statusProviders.map((provider) => ({
+    value: provider.countryKey,
+    label: formatCountryLabel(provider.countryKey),
+    providerId: provider.providerId,
+  }));
+  const selectedCountryLabel =
+    providerOptions.find((option) => option.value === selectedCountry)?.label ??
+    "All sources";
+  const searchScopeLabel = getSearchScopeLabel(selectedCountryLabel);
+  const activeProviders = selectedCountry
+    ? statusProviders.filter(
+        (provider) => provider.countryKey === selectedCountry,
+      )
+    : statusProviders;
+  const totalSponsors = activeProviders.reduce(
+    (sum, provider) => sum + provider.totalSponsors,
+    0,
+  );
+  const latestUpdatedAt = activeProviders.reduce<string | null>(
+    (latest, provider) => {
+      if (!provider.lastUpdated) return latest;
+      if (!latest) return provider.lastUpdated;
+      return new Date(provider.lastUpdated) > new Date(latest)
+        ? provider.lastUpdated
+        : latest;
+    },
+    null,
+  );
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const searchQueryResult = useQuery({
+    queryKey: queryKeys.visaSponsors.search(
+      debouncedSearchQuery.trim(),
+      100,
+      20,
+      selectedCountry ?? undefined,
+    ),
+    queryFn: () =>
+      api.searchVisaSponsors({
+        query: debouncedSearchQuery.trim(),
+        limit: 100,
+        minScore: 20,
+        country: selectedCountry ?? undefined,
+      }),
+    enabled: Boolean(debouncedSearchQuery.trim()),
+  });
+  useQueryErrorToast(searchQueryResult.error, "Search failed");
+
+  const results = useMemo<VisaSponsorSearchResult[]>(() => {
+    if (!debouncedSearchQuery.trim()) return [];
+    return searchQueryResult.data?.results ?? [];
+  }, [debouncedSearchQuery, searchQueryResult.data]);
+
+  const selectedResult = useMemo(
+    () => results.find((r) => getResultKey(r) === selectedResultKey) ?? null,
+    [results, selectedResultKey],
+  );
+  const selectedOrg = selectedResult?.sponsor.organisationName ?? null;
+
+  const orgDetailsQuery = useQuery<VisaSponsor[]>({
+    queryKey: queryKeys.visaSponsors.organization(
+      selectedOrg ?? "",
+      selectedResult?.providerId,
+    ),
+    queryFn: () =>
+      selectedOrg
+        ? api.getVisaSponsorOrganization(
+            selectedOrg,
+            selectedResult?.providerId,
+          )
+        : Promise.resolve([]),
+    enabled: Boolean(selectedOrg),
+  });
+  const orgDetails = orgDetailsQuery.data ?? [];
+  useQueryErrorToast(orgDetailsQuery.error, "Failed to fetch details");
+
+  // Auto-select first result
+  useEffect(() => {
+    if (results.length === 0) {
+      setSelectedResultKey(null);
+      return;
+    }
+    if (
+      !selectedResultKey ||
+      !results.some((r) => getResultKey(r) === selectedResultKey)
+    ) {
+      setSelectedResultKey(getResultKey(results[0]));
+    }
+  }, [results, selectedResultKey]);
+
+  useEffect(() => {
+    if (!selectedResultKey) {
+      setIsDetailDrawerOpen(false);
+    }
+  }, [selectedResultKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(min-width: 1024px)");
+    const handleChange = () => setIsDesktop(media.matches);
+    handleChange();
+    if (media.addEventListener) {
+      media.addEventListener("change", handleChange);
+      return () => media.removeEventListener("change", handleChange);
+    }
+    media.addListener(handleChange);
+    return () => media.removeListener(handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (isDesktop && isDetailDrawerOpen) {
+      setIsDetailDrawerOpen(false);
+    }
+  }, [isDesktop, isDetailDrawerOpen]);
+
+  // Trigger manual update
+  const updateListMutation = useMutation({
+    mutationFn: api.updateVisaSponsorList,
+    onSuccess: async (result) => {
+      queryClient.setQueryData(queryKeys.visaSponsors.status(), result.status);
+      if (debouncedSearchQuery.trim()) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.visaSponsors.search(
+            debouncedSearchQuery.trim(),
+            100,
+            20,
+            selectedCountry ?? undefined,
+          ),
+        });
+      }
+      toast.success(result.message);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Update failed";
+      toast.error(message);
+    },
+  });
+
+  const handleUpdate = async () => {
+    await updateListMutation.mutateAsync();
+  };
+
+  const handleSelectOrg = (resultKey: string) => {
+    setSelectedResultKey(resultKey);
+    if (!isDesktop) {
+      setIsDetailDrawerOpen(true);
+    }
+  };
+
+  const handleCountryChange = (value: string) => {
+    setSelectedCountry(value === ALL_SOURCES_VALUE ? null : value);
+    setSelectedResultKey(null);
+    setIsDetailDrawerOpen(false);
+  };
+
+  const isUpdateInProgress =
+    updateListMutation.isPending ||
+    statusProviders.some((provider) => provider.isUpdating);
+  const isLoadingStatus = statusQuery.isLoading;
+  const isSearching = searchQueryResult.isFetching;
+  const isLoadingDetails = orgDetailsQuery.isLoading;
+
+  const detailPanelContent = !selectedResult ? (
+    <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+      <div className="text-base font-semibold">Select a company</div>
+      <p className="text-sm text-muted-foreground">
+        Pick a company from the results to see details here.
+      </p>
+    </div>
+  ) : isLoadingDetails ? (
+    <div className="flex items-center justify-center h-32">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  ) : (
+    <div className="space-y-4">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-200">
+            <CheckCircle2 className="h-3 w-3" />
+            Licensed Sponsor
+          </span>
+          {selectedResult && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                getScoreTokens(selectedResult.score).badge,
+              )}
+            >
+              {selectedResult.score}% Match
+            </span>
+          )}
+        </div>
+        <h2 className="text-lg font-semibold text-foreground">{selectedOrg}</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Source: {formatCountryLabel(selectedResult.countryKey)}
+        </p>
+      </div>
+
+      {/* Location */}
+      {orgDetails.length > 0 &&
+        (orgDetails[0].townCity || orgDetails[0].county) && (
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
+              Location
+            </div>
+            <div className="flex items-center gap-2 text-sm text-foreground">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              {[orgDetails[0].townCity, orgDetails[0].county]
+                .filter(Boolean)
+                .join(", ")}
+            </div>
+          </div>
+        )}
+
+      {/* Licence types / routes */}
+      <div>
+        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+          Licensed Routes ({orgDetails.length})
+        </div>
+        <div className="space-y-2">
+          {orgDetails.map((entry) => (
+            <div
+              key={`${entry.route}-${entry.typeRating}`}
+              className="rounded-lg border border-border/60 bg-muted/20 p-3"
+            >
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <Badge variant="secondary" className="text-xs">
+                  {entry.route}
+                </Badge>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  Type & Rating:
+                </span>{" "}
+                {entry.typeRating}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Info box */}
+      <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-3 text-sm">
+        <div className="font-medium text-sky-200 mb-1">
+          What does this mean?
+        </div>
+        <p className="text-xs text-sky-300/80">
+          This organisation appears in the selected sponsor source and may be
+          able to sponsor workers on the routes listed above. Always verify the
+          latest source entry before relying on it.
+        </p>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <PageHeader
+        icon={Shield}
+        title="Visa Sponsors"
+        statusIndicator={
+          isUpdateInProgress ? <StatusIndicator label="Updating" /> : undefined
+        }
+        subtitle="Search sponsor data across available sources"
+        actions={
+          <>
+            {status && (
+              <div className="hidden md:flex items-center gap-4 text-xs text-muted-foreground mr-2">
+                <span className="flex items-center gap-1.5">
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  {totalSponsors.toLocaleString()} sponsors
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  {formatDateTime(latestUpdatedAt) || "Never"}
+                </span>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleUpdate}
+              disabled={isUpdateInProgress}
+              aria-label="Update sponsor list"
+            >
+              {isUpdateInProgress ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+            </Button>
+          </>
+        }
+      />
+
+      <PageMain>
+        {/* Search section */}
+        <section className="rounded-xl border border-border/60 bg-card/40 p-4">
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <div className="space-y-2">
+                <label
+                  htmlFor="sponsor-search"
+                  className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  Company name
+                </label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="sponsor-search"
+                    placeholder="Search for a company name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-10 h-10"
+                    autoFocus
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Enter a company name to check if they&apos;re a licensed visa
+                  sponsor in {searchScopeLabel}.
+                </p>
+              </div>
+              <label
+                htmlFor="sponsor-source"
+                className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                Source
+              </label>
+              <Select
+                value={selectedCountry ?? ALL_SOURCES_VALUE}
+                onValueChange={handleCountryChange}
+              >
+                <SelectTrigger
+                  id="sponsor-source"
+                  aria-label="Select sponsor source"
+                >
+                  <SelectValue placeholder="All sources" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_SOURCES_VALUE}>All sources</SelectItem>
+                  {providerOptions.map((option) => (
+                    <SelectItem key={option.providerId} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </section>
+
+        <SplitLayout>
+          {/* Left panel - Results */}
+          <ListPanel
+            footer={
+              results.length > 0 ? (
+                <div className="text-xs text-muted-foreground">
+                  {results.length} result{results.length !== 1 ? "s" : ""}
+                  {isSearching && (
+                    <span className="ml-2">
+                      <Loader2 className="inline h-3 w-3 animate-spin" />
+                    </span>
+                  )}
+                </div>
+              ) : null
+            }
+          >
+            {!isLoadingStatus && status && totalSponsors === 0 && (
+              <EmptyState
+                icon={AlertCircle}
+                title="No sponsor data available"
+                description="The visa sponsor list hasn't been downloaded yet."
+                action={
+                  <Button
+                    size="sm"
+                    onClick={handleUpdate}
+                    disabled={isUpdateInProgress}
+                  >
+                    {isUpdateInProgress ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download List
+                      </>
+                    )}
+                  </Button>
+                }
+              />
+            )}
+
+            {status && totalSponsors > 0 && !searchQuery && (
+              <EmptyState
+                icon={Search}
+                title="Search for a company"
+                description={`Enter a company name above to search ${searchScopeLabel}.`}
+              />
+            )}
+
+            {searchQuery && !isSearching && results.length === 0 && (
+              <EmptyState
+                icon={AlertCircle}
+                title="No matches found"
+                description={`No sponsors match "${searchQuery}". Try a different spelling.`}
+              />
+            )}
+
+            {results.length > 0 &&
+              results.map((result) => (
+                <ListItem
+                  key={getResultKey(result)}
+                  selected={selectedResultKey === getResultKey(result)}
+                  onClick={() => handleSelectOrg(getResultKey(result))}
+                  className="gap-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {result.sponsor.organisationName}
+                      </span>
+                    </div>
+                    {(result.sponsor.townCity || result.sponsor.county) && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        {[
+                          formatCountryLabel(result.countryKey),
+                          result.sponsor.townCity,
+                          result.sponsor.county,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </div>
+                    )}
+                    {!result.sponsor.townCity &&
+                      !result.sponsor.county &&
+                      result.countryKey && (
+                        <div className="text-xs text-muted-foreground">
+                          {formatCountryLabel(result.countryKey)}
+                        </div>
+                      )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <ScoreMeter score={result.score} />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </ListItem>
+              ))}
+          </ListPanel>
+
+          {/* Right panel - Details */}
+          <DetailPanel className="hidden lg:block">
+            {detailPanelContent}
+          </DetailPanel>
+        </SplitLayout>
+      </PageMain>
+
+      <Drawer open={isDetailDrawerOpen} onOpenChange={setIsDetailDrawerOpen}>
+        <DrawerContent className="max-h-[90vh]">
+          <div className="flex items-center justify-between px-4 pt-2">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Sponsor details
+            </div>
+            <DrawerClose asChild>
+              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs">
+                Close
+              </Button>
+            </DrawerClose>
+          </div>
+          <div className="max-h-[calc(90vh-3.5rem)] overflow-y-auto px-4 pb-6 pt-3">
+            {detailPanelContent}
+          </div>
+        </DrawerContent>
+      </Drawer>
+    </>
+  );
+};

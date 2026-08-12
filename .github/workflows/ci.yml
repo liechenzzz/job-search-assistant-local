@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Linting (Biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Biome
+        uses: biomejs/setup-biome@v2
+        with:
+          version: 2.3.12
+      - name: Run Biome
+        run: biome ci .
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci --workspaces --include-workspace-root
+        working-directory: .
+      - name: Build better-sqlite3
+        run: npm --workspace orchestrator rebuild better-sqlite3
+        working-directory: .
+      - name: Run Tests
+        run: npm run test:all
+        working-directory: .
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project:
+          - orchestrator
+          - adzuna-extractor
+          - hiringcafe-extractor
+          - gradcracker-extractor
+          - startupjobs-extractor
+          - workingnomads-extractor
+          - ukvisajobs-extractor
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --workspaces --include-workspace-root
+        working-directory: .
+
+      - name: Check shared package types
+        run: npm run check:types:shared
+        working-directory: .
+
+      - name: Type Check ${{ matrix.project }}
+        run: npm --workspace ${{ matrix.project }} run check:types
+        working-directory: .
+
+      - name: Build ${{ matrix.project }} (client)
+        if: matrix.project == 'orchestrator'
+        run: npm --workspace orchestrator run build:client
+        working-directory: .
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --workspaces --include-workspace-root
+        working-directory: .
+
+      - name: Build documentation site
+        run: npm run check:docs
+        working-directory: .

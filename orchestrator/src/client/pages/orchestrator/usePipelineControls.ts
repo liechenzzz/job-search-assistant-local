@@ -1,0 +1,246 @@
+import * as api from "@client/api";
+import type { ManualImportResult } from "@client/components/ManualImportFlow";
+import { useSettings } from "@client/hooks/useSettings";
+import {
+  createLocationIntent,
+  planLocationSources,
+} from "@shared/location-intelligence.js";
+import type { AppSettings, JobSource } from "@shared/types.js";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { trackProductEvent } from "@/lib/analytics";
+import type { AutomaticRunValues } from "./automatic-run";
+import {
+  deriveExtractorLimits,
+  serializeCityLocationsSetting,
+} from "./automatic-run";
+import type { RunMode } from "./run-mode";
+
+type UsePipelineControlsArgs = {
+  isPipelineRunning: boolean;
+  setIsPipelineRunning: (value: boolean) => void;
+  pipelineTerminalEvent: { status: string; errorMessage: string | null } | null;
+  pipelineSources: JobSource[];
+  loadJobs: () => Promise<void>;
+  navigateWithContext: (
+    newTab: string,
+    newJobId?: string | null,
+    isReplace?: boolean,
+  ) => void;
+};
+
+export type UsePipelineControlsResult = {
+  isRunModeModalOpen: boolean;
+  setIsRunModeModalOpen: (open: boolean) => void;
+  runMode: RunMode;
+  setRunMode: (mode: RunMode) => void;
+  isCancelling: boolean;
+  openRunMode: (mode: RunMode) => void;
+  handleCancelPipeline: () => Promise<void>;
+  handleSaveAndRunAutomatic: (values: AutomaticRunValues) => Promise<void>;
+  handleManualImported: (result: ManualImportResult) => Promise<void>;
+  refreshSettings: () => Promise<AppSettings | null>;
+};
+
+export function usePipelineControls(
+  args: UsePipelineControlsArgs,
+): UsePipelineControlsResult {
+  const {
+    isPipelineRunning,
+    setIsPipelineRunning,
+    pipelineTerminalEvent,
+    pipelineSources,
+    loadJobs,
+    navigateWithContext,
+  } = args;
+
+  const [isRunModeModalOpen, setIsRunModeModalOpen] = useState(false);
+  const [runMode, setRunMode] = useState<RunMode>("automatic");
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const { refreshSettings } = useSettings();
+
+  useEffect(() => {
+    if (!pipelineTerminalEvent) return;
+    setIsPipelineRunning(false);
+    setIsCancelling(false);
+
+    if (pipelineTerminalEvent.status === "cancelled") {
+      trackProductEvent("jobs_pipeline_run_finished", {
+        status: "cancelled",
+        had_error_message: false,
+      });
+      toast.message("Pipeline cancelled");
+      return;
+    }
+
+    if (pipelineTerminalEvent.status === "failed") {
+      trackProductEvent("jobs_pipeline_run_finished", {
+        status: "failed",
+        had_error_message: Boolean(pipelineTerminalEvent.errorMessage),
+      });
+      toast.error(pipelineTerminalEvent.errorMessage || "Pipeline failed");
+      return;
+    }
+
+    trackProductEvent("jobs_pipeline_run_finished", {
+      status: "completed",
+      had_error_message: false,
+    });
+    toast.success("Pipeline completed");
+  }, [pipelineTerminalEvent, setIsPipelineRunning]);
+
+  const openRunMode = useCallback((mode: RunMode) => {
+    setRunMode(mode);
+    setIsRunModeModalOpen(true);
+  }, []);
+
+  const startPipelineRun = useCallback(
+    async (config: {
+      topN: number;
+      minSuitabilityScore: number;
+      sources: JobSource[];
+      runBudget: number;
+      searchTerms: string[];
+      country: string;
+      cityLocations: string[];
+      workplaceTypes: Array<"remote" | "hybrid" | "onsite">;
+      searchScope: AutomaticRunValues["searchScope"];
+      matchStrictness: AutomaticRunValues["matchStrictness"];
+    }) => {
+      try {
+        setIsPipelineRunning(true);
+        setIsCancelling(false);
+        await api.runPipeline({
+          topN: config.topN,
+          minSuitabilityScore: config.minSuitabilityScore,
+          sources: config.sources,
+          runBudget: config.runBudget,
+          searchTerms: config.searchTerms,
+          country: config.country,
+          cityLocations: config.cityLocations,
+          workplaceTypes: config.workplaceTypes,
+          searchScope: config.searchScope,
+          matchStrictness: config.matchStrictness,
+        });
+        toast.message("Pipeline started", {
+          description: `Sources: ${config.sources.join(", ")}. This may take a few minutes.`,
+        });
+      } catch (error) {
+        setIsPipelineRunning(false);
+        setIsCancelling(false);
+        const message =
+          error instanceof Error ? error.message : "Failed to start pipeline";
+        toast.error(message);
+      }
+    },
+    [setIsPipelineRunning],
+  );
+
+  const handleCancelPipeline = useCallback(async () => {
+    if (isCancelling || !isPipelineRunning) return;
+
+    try {
+      setIsCancelling(true);
+      trackProductEvent("jobs_pipeline_run_cancel_requested", {
+        was_running: isPipelineRunning,
+      });
+      const result = await api.cancelPipeline();
+      toast.message(result.message);
+    } catch (error) {
+      setIsCancelling(false);
+      const message =
+        error instanceof Error ? error.message : "Failed to cancel pipeline";
+      toast.error(message);
+    }
+  }, [isCancelling, isPipelineRunning]);
+
+  const handleSaveAndRunAutomatic = useCallback(
+    async (values: AutomaticRunValues) => {
+      const locationIntent = createLocationIntent({
+        selectedCountry: values.country,
+        cityLocations: values.cityLocations,
+        workplaceTypes: values.workplaceTypes,
+        searchScope: values.searchScope,
+        matchStrictness: values.matchStrictness,
+      });
+      const sourcePlan = planLocationSources({
+        intent: locationIntent,
+        sources: pipelineSources,
+      });
+      const incompatiblePlans = sourcePlan.plans.filter((plan) => !plan.canRun);
+      const compatibleSources = sourcePlan.compatibleSources as JobSource[];
+
+      if (incompatiblePlans.length > 0) {
+        toast.error(
+          incompatiblePlans[0]?.reasons[0] ??
+            "Some selected sources do not support this location setup.",
+        );
+        return;
+      }
+
+      if (compatibleSources.length === 0) {
+        toast.error(
+          "No compatible sources for the selected location setup. Choose another country, city, or source.",
+        );
+        return;
+      }
+
+      const limits = deriveExtractorLimits({
+        budget: values.runBudget,
+        searchTerms: values.searchTerms,
+        sources: compatibleSources,
+      });
+      const searchCities = serializeCityLocationsSetting(values.cityLocations);
+      await api.updateSettings({
+        searchTerms: values.searchTerms,
+        workplaceTypes: values.workplaceTypes,
+        locationSearchScope: values.searchScope,
+        locationMatchStrictness: values.matchStrictness,
+        jobspyResultsWanted: limits.jobspyResultsWanted,
+        gradcrackerMaxJobsPerTerm: limits.gradcrackerMaxJobsPerTerm,
+        ukvisajobsMaxJobs: limits.ukvisajobsMaxJobs,
+        adzunaMaxJobsPerTerm: limits.adzunaMaxJobsPerTerm,
+        ontarioPublicSectorMaxJobs: limits.ontarioPublicSectorMaxJobs,
+        startupjobsMaxJobsPerTerm: limits.startupjobsMaxJobsPerTerm,
+        seekMaxJobsPerTerm: limits.seekMaxJobsPerTerm,
+        jobspyCountryIndeed: values.country,
+        searchCities,
+      });
+      await refreshSettings();
+      await startPipelineRun({
+        ...values,
+        sources: compatibleSources,
+        topN: values.topN,
+        minSuitabilityScore: values.minSuitabilityScore,
+      });
+      setIsRunModeModalOpen(false);
+    },
+    [pipelineSources, refreshSettings, startPipelineRun],
+  );
+
+  const handleManualImported = useCallback(
+    async (imported: ManualImportResult) => {
+      trackProductEvent("jobs_manual_import_completed", {
+        manual_import_source: imported.source,
+        manual_import_source_host: imported.sourceHost ?? undefined,
+      });
+      await loadJobs();
+      navigateWithContext("ready", imported.jobId);
+    },
+    [loadJobs, navigateWithContext],
+  );
+
+  return {
+    isRunModeModalOpen,
+    setIsRunModeModalOpen,
+    runMode,
+    setRunMode,
+    isCancelling,
+    openRunMode,
+    handleCancelPipeline,
+    handleSaveAndRunAutomatic,
+    handleManualImported,
+    refreshSettings,
+  };
+}

@@ -1,0 +1,53 @@
+# Environment files
+.env
+.env.*
+!.env.example
+*.env.local
+
+# Dependencies
+node_modules/
+**/node_modules/
+**/.package-lock.json
+**/.docusaurus/
+docs-site/.docusaurus/
+docs-site/build/
+
+# Data directory (bind mount in Docker)
+data/
+orchestrator/storage/
+resumes/
+cover_letters/
+applications/
+exports/
+user_profiles/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Local coding-agent configuration
+.agents/
+.claude/
+.codex/
+.opencode/
+
+# Extractor storage outputs and cached auth
+extractors/ukvisajobs/storage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated TypeScript sidecars can shadow .ts files under tsx.
+orchestrator/src/**/*.js
+shared/src/**/*.js
+orchestrator/scripts/benchmark-jobs.js
+
+# Vite build output
+orchestrator/dist/
+
+# local temp artifacts
+tmp/
+
+# Virtual environment for Python
+.venv

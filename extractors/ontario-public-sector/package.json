@@ -1,0 +1,13 @@
+{
+  "name": "ontario-public-sector-extractor",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Official Ontario public-sector careers extractor for policy, research, data, evaluation, and strategy roles",
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.0"
+  },
+  "scripts": {
+    "check:types": "tsc --noEmit"
+  }
+}

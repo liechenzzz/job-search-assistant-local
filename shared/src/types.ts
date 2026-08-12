@@ -1,0 +1,21 @@
+/**
+ * Shared types for the job-ops orchestrator.
+ *
+ * Types are organized by domain in the `./types/` subdirectory.
+ * This file re-exports everything for backward compatibility.
+ */
+
+export * from "./types/api";
+export * from "./types/chat";
+export * from "./types/design-resume";
+export * from "./types/design-resume-jake";
+export * from "./types/document-policy";
+export * from "./types/extractors";
+export * from "./types/jobs";
+export * from "./types/location";
+export * from "./types/pipeline";
+export * from "./types/post-application";
+export * from "./types/settings";
+export * from "./types/capability-bridge";
+export * from "./types/visa-sponsors";
+export * from "./resume-generation-decision";

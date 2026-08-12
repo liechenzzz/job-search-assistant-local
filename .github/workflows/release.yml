@@ -1,0 +1,185 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Next release version (x.y.z)"
+        required: true
+        type: string
+      release_title:
+        description: "Optional release title shown on GitHub (defaults to vX.Y.Z)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --workspaces --include-workspace-root
+
+      - name: Validate release version
+        id: validate
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must be in x.y.z form, got '$RELEASE_VERSION'" >&2
+            exit 1
+          fi
+
+          CURRENT_VERSION="$(node -p "require('./orchestrator/package.json').version")"
+          if [ "$CURRENT_VERSION" = "$RELEASE_VERSION" ]; then
+            echo "Version $RELEASE_VERSION is already set in orchestrator/package.json"
+            echo "version_already_set=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version_already_set=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if git rev-parse "v$RELEASE_VERSION" >/dev/null 2>&1; then
+            echo "Tag v$RELEASE_VERSION already exists locally"
+            TAG_EXISTS_LOCALLY=true
+          else
+            TAG_EXISTS_LOCALLY=false
+          fi
+
+          if git ls-remote --tags origin "refs/tags/v$RELEASE_VERSION" | grep -q .; then
+            echo "Tag v$RELEASE_VERSION already exists on origin"
+            TAG_EXISTS_ON_ORIGIN=true
+          else
+            TAG_EXISTS_ON_ORIGIN=false
+          fi
+
+          if [ "$TAG_EXISTS_LOCALLY" = true ] || [ "$TAG_EXISTS_ON_ORIGIN" = true ]; then
+            echo "tag_already_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag_already_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "$TAG_EXISTS_LOCALLY" = true ] || [ "$TAG_EXISTS_ON_ORIGIN" = true ]; then
+            if [ "$CURRENT_VERSION" = "$RELEASE_VERSION" ]; then
+              echo "Release tag v$RELEASE_VERSION already exists; skipping version bump and tag creation."
+            else
+              echo "Tag v$RELEASE_VERSION already exists, but orchestrator/package.json is still at $CURRENT_VERSION" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Bump orchestrator version files
+        if: steps.validate.outputs.version_already_set != 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node ./scripts/set-orchestrator-version.mjs "$RELEASE_VERSION"
+
+      - name: Generate docs version
+        if: steps.validate.outputs.version_already_set != 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: npm run docs:version -- "$RELEASE_VERSION"
+
+      - name: Format generated docs files
+        if: steps.validate.outputs.version_already_set != 'true'
+        run: |
+          ./orchestrator/node_modules/.bin/biome check --write \
+            docs-site/versions.json \
+            docs-site/versioned_docs \
+            docs-site/versioned_sidebars
+
+      - name: Commit and push version bump
+        if: steps.validate.outputs.version_already_set != 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            orchestrator/package.json \
+            package-lock.json \
+            docs-site/versions.json \
+            docs-site/versioned_docs \
+            docs-site/versioned_sidebars
+          git commit -m "chore: release $RELEASE_VERSION"
+          git push origin HEAD:main
+
+      - name: Create and push release tag
+        if: steps.validate.outputs.tag_already_exists != 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          git tag "v$RELEASE_VERSION"
+          git push origin "v$RELEASE_VERSION"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (tags/labels)
+        id: docker-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/job-ops
+          tags: |
+            type=raw,value=v${{ inputs.version }}
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push GHCR image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.docker-meta.outputs.tags }}
+          labels: ${{ steps.docker-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          INPUT_RELEASE_TITLE: ${{ inputs.release_title }}
+        run: |
+          RELEASE_TITLE="$(printf '%s' "$INPUT_RELEASE_TITLE" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          if [ -z "$RELEASE_TITLE" ]; then
+            RELEASE_TITLE="v$RELEASE_VERSION"
+          fi
+
+          if gh release view "v$RELEASE_VERSION" >/dev/null 2>&1; then
+            echo "GitHub release v$RELEASE_VERSION already exists; skipping release creation."
+          else
+            gh release create "v$RELEASE_VERSION" --title "$RELEASE_TITLE" --generate-notes
+          fi

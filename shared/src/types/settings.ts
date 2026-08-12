@@ -1,0 +1,266 @@
+import type {
+  LocationMatchStrictness,
+  LocationSearchScope,
+} from "../location-preferences";
+
+export interface ResumeProjectCatalogItem {
+  id: string;
+  name: string;
+  description: string;
+  date: string;
+  isVisibleInBase: boolean;
+}
+
+export interface ResumeProjectsSettings {
+  maxProjects: number;
+  lockedProjectIds: string[];
+  aiSelectableProjectIds: string[];
+}
+
+export const PDF_RENDERER_VALUES = ["rxresume", "latex"] as const;
+export type PdfRenderer = (typeof PDF_RENDERER_VALUES)[number];
+export const PDF_RENDERER_LABELS: Record<PdfRenderer, string> = {
+  rxresume: "RxResume export",
+  latex: "Local LaTeX (Jake template)",
+};
+
+export const RESUME_OUTPUT_MODE_VALUES = [
+  "strict_ats_visual",
+  "master_visual_table",
+] as const;
+export type ResumeOutputMode = (typeof RESUME_OUTPUT_MODE_VALUES)[number];
+export const RESUME_OUTPUT_MODE_LABELS: Record<ResumeOutputMode, string> = {
+  strict_ats_visual: "Strict ATS visual",
+  master_visual_table: "Master visual table",
+};
+
+export const CHAT_STYLE_LANGUAGE_MODE_VALUES = [
+  "manual",
+  "match-resume",
+] as const;
+
+export type ChatStyleLanguageMode =
+  (typeof CHAT_STYLE_LANGUAGE_MODE_VALUES)[number];
+
+export const CHAT_STYLE_MANUAL_LANGUAGE_VALUES = [
+  "english",
+  "german",
+  "french",
+  "spanish",
+] as const;
+
+export type ChatStyleManualLanguage =
+  (typeof CHAT_STYLE_MANUAL_LANGUAGE_VALUES)[number];
+
+export const CHAT_STYLE_MANUAL_LANGUAGE_LABELS: Record<
+  ChatStyleManualLanguage,
+  string
+> = {
+  english: "English",
+  german: "German",
+  french: "French",
+  spanish: "Spanish",
+};
+
+export const ROLE_FRAMING_MODE_VALUES = ["auto", "manual", "general"] as const;
+export type RoleFramingMode = (typeof ROLE_FRAMING_MODE_VALUES)[number];
+
+export const APPLICATION_ROLE_FAMILY_VALUES = [
+  "general",
+  "public_sector_policy_economic_development",
+  "market_insights_research",
+  "ai_digital_strategy",
+  "consulting_strategy",
+  "business_development_partnerships",
+  "data_analytics_operations",
+  "product_project_program",
+  "communications_content",
+  "administration_coordination",
+  "custom",
+] as const;
+export type ApplicationRoleFamily =
+  (typeof APPLICATION_ROLE_FAMILY_VALUES)[number];
+
+export interface ResumeProfile {
+  basics?: {
+    name?: string;
+    label?: string;
+    image?: string;
+    email?: string;
+    phone?: string;
+    url?: string;
+    summary?: string;
+    headline?: string;
+    location?: {
+      address?: string;
+      postalCode?: string;
+      city?: string;
+      countryCode?: string;
+      region?: string;
+    };
+    profiles?: Array<{
+      network?: string;
+      username?: string;
+      url?: string;
+    }>;
+  };
+  sections?: {
+    summary?: {
+      id?: string;
+      visible?: boolean;
+      name?: string;
+      content?: string;
+    };
+    skills?: {
+      id?: string;
+      visible?: boolean;
+      name?: string;
+      items?: Array<{
+        id: string;
+        name: string;
+        description: string;
+        level: number;
+        keywords: string[];
+        visible: boolean;
+      }>;
+    };
+    projects?: {
+      id?: string;
+      visible?: boolean;
+      name?: string;
+      items?: Array<{
+        id: string;
+        name: string;
+        description: string;
+        date: string;
+        summary: string;
+        visible: boolean;
+        keywords?: string[];
+        url?: string;
+      }>;
+    };
+    experience?: {
+      id?: string;
+      visible?: boolean;
+      name?: string;
+      items?: Array<{
+        id: string;
+        company: string;
+        position: string;
+        location: string;
+        date: string;
+        summary: string;
+        visible: boolean;
+      }>;
+    };
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export interface ProfileStatusResponse {
+  exists: boolean;
+  error: string | null;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  message: string | null;
+  status?: number | null;
+}
+
+export interface SearchTermsSuggestionResponse {
+  terms: string[];
+  source: "ai" | "fallback";
+}
+
+export interface DemoInfoResponse {
+  demoMode: boolean;
+  resetCadenceHours: number;
+  lastResetAt: string | null;
+  nextResetAt: string | null;
+  baselineVersion: string | null;
+  baselineName: string | null;
+}
+
+export type Resolved<T> = { value: T; default: T; override: T | null };
+export type ModelResolved = { value: string; override: string | null };
+
+export interface AppSettings {
+  // Typed settings (Resolved):
+  model: Resolved<string>;
+  llmProvider: Resolved<string>;
+  llmBaseUrl: Resolved<string>;
+  pipelineWebhookUrl: Resolved<string>;
+  jobCompleteWebhookUrl: Resolved<string>;
+  resumeProjects: Resolved<ResumeProjectsSettings>;
+  pdfRenderer: Resolved<PdfRenderer>;
+  resumeOutputMode: Resolved<ResumeOutputMode>;
+  ukvisajobsMaxJobs: Resolved<number>;
+  adzunaMaxJobsPerTerm: Resolved<number>;
+  gradcrackerMaxJobsPerTerm: Resolved<number>;
+  startupjobsMaxJobsPerTerm: Resolved<number>;
+  ontarioPublicSectorMaxJobs: Resolved<number>;
+  seekMaxJobsPerTerm: Resolved<number>;
+  searchTerms: Resolved<string[]>;
+  workplaceTypes: Resolved<Array<"remote" | "hybrid" | "onsite">>;
+  blockedCompanyKeywords: Resolved<string[]>;
+  scoringInstructions: Resolved<string>;
+  ghostwriterSystemPromptTemplate: Resolved<string>;
+  ghostwriterStopSlopEnabled: Resolved<boolean>;
+  tailoringPromptTemplate: Resolved<string>;
+  scoringPromptTemplate: Resolved<string>;
+  searchCities: Resolved<string>;
+  locationSearchScope: Resolved<LocationSearchScope>;
+  locationMatchStrictness: Resolved<LocationMatchStrictness>;
+  jobspyResultsWanted: Resolved<number>;
+  jobspyCountryIndeed: Resolved<string>;
+  showSponsorInfo: Resolved<boolean>;
+  renderMarkdownInJobDescriptions: Resolved<boolean>;
+  chatStyleTone: Resolved<string>;
+  chatStyleFormality: Resolved<string>;
+  chatStyleConstraints: Resolved<string>;
+  chatStyleDoNotUse: Resolved<string>;
+  chatStyleLanguageMode: Resolved<ChatStyleLanguageMode>;
+  chatStyleManualLanguage: Resolved<ChatStyleManualLanguage>;
+  chatStyleSummaryMaxWords: Resolved<number | null>;
+  chatStyleMaxKeywordsPerSkill: Resolved<number | null>;
+  humanizerEnabled: Resolved<boolean>;
+  impactFramingEnabled: Resolved<boolean>;
+  roleFramingMode: Resolved<RoleFramingMode>;
+  manualRoleFamily: Resolved<ApplicationRoleFamily>;
+  customRoleFramingInstructions: Resolved<string>;
+  backupEnabled: Resolved<boolean>;
+  backupHour: Resolved<number>;
+  backupMaxCount: Resolved<number>;
+  penalizeMissingSalary: Resolved<boolean>;
+  missingSalaryPenalty: Resolved<number>;
+  autoSkipScoreThreshold: Resolved<number | null>;
+
+  // Model variants (no own default, fallback to model.value):
+  modelScorer: ModelResolved;
+  modelTailoring: ModelResolved;
+  modelProjectSelection: ModelResolved;
+
+  // Simple strings:
+  rxresumeBaseResumeId: string | null;
+  onboardingBasicAuthDecision: "enabled" | "skipped" | null;
+  rxresumeUrl: string | null;
+  ukvisajobsEmail: string | null;
+  adzunaAppId: string | null;
+  basicAuthUser: string | null;
+  basicAuthPassword: string | null;
+
+  // Secret hints:
+  llmApiKeyHint: string | null;
+  rxresumeApiKeyHint: string | null;
+  ukvisajobsPasswordHint: string | null;
+  adzunaAppKeyHint: string | null;
+  apifyTokenHint: string | null;
+  basicAuthPasswordHint: string | null;
+  webhookSecretHint: string | null;
+
+  // Computed:
+  basicAuthActive: boolean;
+  profileProjects: ResumeProjectCatalogItem[];
+}

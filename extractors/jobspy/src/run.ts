@@ -1,0 +1,564 @@
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, unlink } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
+import { fileURLToPath } from "node:url";
+import { classifyJobRelevance } from "@shared/job-relevance.js";
+import { resolveSearchCities } from "@shared/search-cities.js";
+import type {
+  CreateJobInput,
+  JobLocationEvidence,
+  JobSource,
+} from "@shared/types/jobs";
+import {
+  toNumberOrNull,
+  toStringOrNull,
+} from "@shared/utils/type-conversion.js";
+
+const srcDir = dirname(fileURLToPath(import.meta.url));
+const EXTRACTOR_DIR = join(srcDir, "..");
+const JOBSPY_SCRIPT = join(EXTRACTOR_DIR, "scrape_jobs.py");
+const OUTPUT_DIR = join(EXTRACTOR_DIR, "storage/imports");
+const JOBOPS_PROGRESS_PREFIX = "JOBOPS_PROGRESS ";
+
+class JobSpyCancelledError extends Error {
+  constructor() {
+    super("JobSpy run cancelled");
+    this.name = "JobSpyCancelledError";
+  }
+}
+
+export type JobSpyProgressEvent =
+  | {
+      type: "term_start";
+      termIndex: number;
+      termTotal: number;
+      searchTerm: string;
+    }
+  | {
+      type: "term_complete";
+      termIndex: number;
+      termTotal: number;
+      searchTerm: string;
+      jobsFoundTerm: number;
+    };
+
+export function parseJobSpyProgressLine(
+  line: string,
+): JobSpyProgressEvent | null {
+  if (!line.startsWith(JOBOPS_PROGRESS_PREFIX)) return null;
+  const raw = line.slice(JOBOPS_PROGRESS_PREFIX.length).trim();
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+
+  const eventName = toStringOrNull(parsed.event);
+  const termIndex = toNumberOrNull(parsed.termIndex);
+  const termTotal = toNumberOrNull(parsed.termTotal);
+  const searchTerm = toStringOrNull(parsed.searchTerm) ?? "";
+
+  if (!eventName || termIndex === null || termTotal === null) return null;
+  if (eventName === "term_start") {
+    return { type: "term_start", termIndex, termTotal, searchTerm };
+  }
+  if (eventName === "term_complete") {
+    return {
+      type: "term_complete",
+      termIndex,
+      termTotal,
+      searchTerm,
+      jobsFoundTerm: toNumberOrNull(parsed.jobsFoundTerm) ?? 0,
+    };
+  }
+  return null;
+}
+
+function toBooleanOrNull(value: unknown): boolean | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return null;
+    if (["1", "true", "yes", "y", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "n", "off"].includes(normalized)) return false;
+  }
+  return null;
+}
+
+function toJsonStringOrNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return toStringOrNull(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return null;
+  }
+}
+
+function buildLocationEvidence(
+  location: string | null,
+): JobLocationEvidence | undefined {
+  if (!location) return undefined;
+  return {
+    location,
+    source: "jobspy",
+  };
+}
+
+function toJobSource(site: unknown): JobSource | null {
+  const raw = toStringOrNull(site)?.toLowerCase();
+  if (raw === "gradcracker") return "gradcracker";
+  if (raw === "indeed") return "indeed";
+  if (raw === "linkedin") return "linkedin";
+  if (raw === "glassdoor") return "glassdoor";
+  return null;
+}
+
+function formatSalary(params: {
+  minAmount: number | null;
+  maxAmount: number | null;
+  currency: string | null;
+  interval: string | null;
+}): string | null {
+  const { minAmount, maxAmount, currency, interval } = params;
+  if (minAmount === null && maxAmount === null) return null;
+
+  const fmt = (n: number) => `${Math.round(n)}`;
+  let range: string;
+  if (minAmount !== null && maxAmount !== null) {
+    range = `${fmt(minAmount)}-${fmt(maxAmount)}`;
+  } else if (minAmount !== null) {
+    range = `${fmt(minAmount)}+`;
+  } else if (maxAmount !== null) {
+    range = fmt(maxAmount);
+  } else {
+    return null;
+  }
+
+  const currencyPart = currency ? `${currency} ` : "";
+  const intervalPart = interval ? ` / ${interval}` : "";
+  return `${currencyPart}${range}${intervalPart}`.trim();
+}
+
+export interface RunJobSpyOptions {
+  sites?: Array<JobSource>;
+  searchTerms?: string[];
+  location?: string;
+  locations?: string[];
+  workplaceTypes?: Array<"remote" | "hybrid" | "onsite">;
+  resultsWanted?: number;
+  hoursOld?: number;
+  countryIndeed?: string;
+  linkedinFetchDescription?: boolean;
+  isRemote?: boolean;
+  shouldCancel?: () => boolean;
+  onProgress?: (event: JobSpyProgressEvent) => void;
+}
+
+export interface JobSpyResult {
+  success: boolean;
+  jobs: CreateJobInput[];
+  error?: string;
+}
+
+function normalizeOptionalString(
+  value: string | null | undefined,
+): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+export function resolveJobSpyLocations(args: {
+  locations?: string[] | null;
+  location?: string | null;
+}): Array<string | null> {
+  const locations = resolveSearchCities({
+    list: args.locations,
+    single: args.location,
+    env: process.env.JOBSPY_LOCATION,
+  });
+  return locations.length > 0 ? locations : [null];
+}
+
+export function resolveJobSpyCountryIndeed(args: {
+  countryIndeed?: string | null;
+}): string | null {
+  return normalizeOptionalString(
+    args.countryIndeed ?? process.env.JOBSPY_COUNTRY_INDEED,
+  );
+}
+
+export function resolveJobSpySiteLocations(args: {
+  location?: string | null;
+  countryIndeed?: string | null;
+}): {
+  linkedinLocation: string | null;
+  indeedLocation: string | null;
+  glassdoorLocation: string | null;
+} {
+  const location = normalizeOptionalString(args.location);
+  const countryIndeed = normalizeOptionalString(args.countryIndeed);
+
+  // JobSpy does not apply geo filtering consistently across sites:
+  // - LinkedIn only honors `location`, so a country-only run must send the
+  //   selected country there or LinkedIn searches globally.
+  // - Indeed and Glassdoor honor `country_indeed` directly, so we only pass a
+  //   location when the user explicitly asked for a city/region.
+  return {
+    linkedinLocation: location ?? countryIndeed,
+    indeedLocation: location,
+    glassdoorLocation: location,
+  };
+}
+
+export function deriveIsRemoteFlag(
+  workplaceTypes: Array<"remote" | "hybrid" | "onsite"> | undefined,
+): boolean | undefined {
+  return workplaceTypes?.length === 1 && workplaceTypes[0] === "remote"
+    ? true
+    : undefined;
+}
+
+export async function runJobSpy(
+  options: RunJobSpyOptions = {},
+): Promise<JobSpyResult> {
+  await mkdir(OUTPUT_DIR, { recursive: true });
+
+  const sites = (options.sites ?? ["indeed", "linkedin", "glassdoor"])
+    .filter(
+      (site) =>
+        site === "indeed" || site === "linkedin" || site === "glassdoor",
+    )
+    .join(",");
+
+  const searchTerms = resolveSearchTerms(options);
+  const runLocations = resolveJobSpyLocations(options);
+  const countryIndeed = resolveJobSpyCountryIndeed(options);
+  if (searchTerms.length === 0) {
+    return { success: true, jobs: [] };
+  }
+
+  const jobs: CreateJobInput[] = [];
+
+  try {
+    const seenJobUrls = new Set<string>();
+    const totalRuns = searchTerms.length * runLocations.length;
+    let runIndex = 0;
+
+    for (const searchTerm of searchTerms) {
+      for (const location of runLocations) {
+        if (options.shouldCancel?.()) {
+          return { success: true, jobs };
+        }
+
+        runIndex += 1;
+        const locationToken = location ?? countryIndeed ?? "anywhere";
+        const suffix = `${runIndex}_${slugForFilename(searchTerm)}_${slugForFilename(locationToken)}`;
+        const outputCsv = join(OUTPUT_DIR, `jobspy_jobs_${suffix}.csv`);
+        const outputJson = join(OUTPUT_DIR, `jobspy_jobs_${suffix}.json`);
+        const siteLocations = resolveJobSpySiteLocations({
+          location,
+          countryIndeed,
+        });
+
+        await new Promise<void>((resolve, reject) => {
+          // Auto-detect venv if present, so contributors don't need to set
+          // PYTHON_PATH manually. The venv is created once with:
+          //   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+          // In Docker, PYTHON_PATH is set explicitly to /usr/bin/python3.
+          const venvPython = join(
+            EXTRACTOR_DIR,
+            ".venv",
+            process.platform === "win32" ? "Scripts/python.exe" : "bin/python3",
+          );
+          const pythonPath = process.env.PYTHON_PATH
+            ? process.env.PYTHON_PATH
+            : existsSync(venvPython)
+              ? venvPython
+              : process.platform === "win32"
+                ? "python"
+                : "python3";
+
+          const child = spawn(pythonPath, [JOBSPY_SCRIPT], {
+            cwd: EXTRACTOR_DIR,
+            shell: false,
+            stdio: ["ignore", "pipe", "pipe"],
+            env: {
+              ...process.env,
+              JOBSPY_SITES: sites || "indeed,linkedin,glassdoor",
+              JOBSPY_SEARCH_TERM: searchTerm,
+              JOBSPY_TERM_INDEX: String(runIndex),
+              JOBSPY_TERM_TOTAL: String(totalRuns),
+              JOBSPY_RESULTS_WANTED: String(
+                options.resultsWanted ??
+                  process.env.JOBSPY_RESULTS_WANTED ??
+                  200,
+              ),
+              JOBSPY_HOURS_OLD: String(
+                options.hoursOld ?? process.env.JOBSPY_HOURS_OLD ?? 72,
+              ),
+              JOBSPY_LINKEDIN_FETCH_DESCRIPTION: String(
+                options.linkedinFetchDescription ??
+                  process.env.JOBSPY_LINKEDIN_FETCH_DESCRIPTION ??
+                  "1",
+              ),
+              JOBSPY_IS_REMOTE: String(
+                options.isRemote ??
+                  deriveIsRemoteFlag(options.workplaceTypes) ??
+                  process.env.JOBSPY_IS_REMOTE ??
+                  "0",
+              ),
+              JOBSPY_OUTPUT_CSV: outputCsv,
+              JOBSPY_OUTPUT_JSON: outputJson,
+              ...(location ? { JOBSPY_LOCATION: location } : {}),
+              ...(siteLocations.linkedinLocation
+                ? { JOBSPY_LINKEDIN_LOCATION: siteLocations.linkedinLocation }
+                : {}),
+              ...(siteLocations.indeedLocation
+                ? { JOBSPY_INDEED_LOCATION: siteLocations.indeedLocation }
+                : {}),
+              ...(siteLocations.glassdoorLocation
+                ? { JOBSPY_GLASSDOOR_LOCATION: siteLocations.glassdoorLocation }
+                : {}),
+              ...(countryIndeed
+                ? { JOBSPY_COUNTRY_INDEED: countryIndeed }
+                : {}),
+            },
+          });
+          let settled = false;
+          let killTimer: NodeJS.Timeout | null = null;
+          const cancelInterval = options.shouldCancel
+            ? setInterval(() => {
+                if (!options.shouldCancel?.() || settled) return;
+                child.kill("SIGTERM");
+                killTimer ??= setTimeout(() => {
+                  if (!settled) {
+                    child.kill("SIGKILL");
+                  }
+                }, 2000);
+                killTimer.unref?.();
+              }, 500)
+            : null;
+          cancelInterval?.unref?.();
+
+          const handleLine = (line: string, stream: NodeJS.WriteStream) => {
+            const event = parseJobSpyProgressLine(line);
+            if (event) {
+              options.onProgress?.(event);
+              return;
+            }
+            stream.write(`${line}\n`);
+          };
+
+          const stdoutRl = child.stdout
+            ? createInterface({ input: child.stdout })
+            : null;
+          const stderrRl = child.stderr
+            ? createInterface({ input: child.stderr })
+            : null;
+
+          stdoutRl?.on("line", (line) => handleLine(line, process.stdout));
+          stderrRl?.on("line", (line) => handleLine(line, process.stderr));
+
+          child.on("close", (code) => {
+            settled = true;
+            if (cancelInterval) clearInterval(cancelInterval);
+            if (killTimer) clearTimeout(killTimer);
+            stdoutRl?.close();
+            stderrRl?.close();
+            if (options.shouldCancel?.()) {
+              reject(new JobSpyCancelledError());
+              return;
+            }
+            if (code === 0) resolve();
+            else reject(new Error(`JobSpy exited with code ${code}`));
+          });
+          child.on("error", (error) => {
+            settled = true;
+            if (cancelInterval) clearInterval(cancelInterval);
+            if (killTimer) clearTimeout(killTimer);
+            reject(error);
+          });
+        });
+
+        const raw = await readFile(outputJson, "utf-8");
+        const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
+        const filtered = mapJobSpyRows(parsed, searchTerms);
+
+        for (const job of filtered) {
+          if (seenJobUrls.has(job.jobUrl)) continue;
+          seenJobUrls.add(job.jobUrl);
+          jobs.push(job);
+        }
+
+        try {
+          await unlink(outputJson);
+          await unlink(outputCsv);
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    }
+
+    return { success: true, jobs };
+  } catch (error) {
+    if (error instanceof JobSpyCancelledError) {
+      return { success: true, jobs };
+    }
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return { success: false, jobs: [], error: message };
+  }
+}
+
+function resolveSearchTerms(options: RunJobSpyOptions): string[] {
+  const fromOptions = options.searchTerms?.length ? options.searchTerms : null;
+  const fromEnv = parseSearchTermsEnv(process.env.JOBSPY_SEARCH_TERMS);
+  const raw = fromOptions ?? fromEnv ?? ["web developer"];
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  for (const term of raw) {
+    const normalized = term.trim();
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function parseSearchTermsEnv(raw: string | undefined): string[] | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((value) => typeof value === "string")
+      ) {
+        return parsed;
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  const delimiter = trimmed.includes("|")
+    ? "|"
+    : trimmed.includes("\n")
+      ? "\n"
+      : ",";
+  const split = trimmed
+    .split(delimiter)
+    .map((term) => term.trim())
+    .filter(Boolean);
+  return split.length > 0 ? split : null;
+}
+
+function slugForFilename(input: string): string {
+  const slug = input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+  return slug || "term";
+}
+
+function mapJobSpyRows(
+  parsed: Array<Record<string, unknown>>,
+  searchTerms: string[],
+): CreateJobInput[] {
+  const jobs: CreateJobInput[] = [];
+
+  for (const row of parsed) {
+    const source = toJobSource(row.site);
+    if (!source) continue;
+
+    const jobUrl = toStringOrNull(row.job_url);
+    if (!jobUrl) continue;
+
+    const minAmount = toNumberOrNull(row.min_amount);
+    const maxAmount = toNumberOrNull(row.max_amount);
+    const currency = toStringOrNull(row.currency);
+    const interval = toStringOrNull(row.interval);
+    const salary = formatSalary({ minAmount, maxAmount, currency, interval });
+
+    const jobUrlDirect = toStringOrNull(row.job_url_direct);
+
+    const title = toStringOrNull(row.title) ?? "Unknown Title";
+    const jobDescription = toStringOrNull(row.description) ?? undefined;
+    const employer = toStringOrNull(row.company) ?? "Unknown Employer";
+    const classification = classifyJobRelevance({
+      source,
+      sourceKind: "job-board",
+      title,
+      employer,
+      description: jobDescription,
+      url: jobUrl,
+      location: toStringOrNull(row.location),
+      datePosted: toStringOrNull(row.date_posted),
+      jobType: toStringOrNull(row.job_type),
+      searchTerms,
+    });
+    if (classification.status === "non_job_page") continue;
+
+    jobs.push({
+      source,
+      sourceJobId: toStringOrNull(row.id) ?? undefined,
+      jobUrlDirect: jobUrlDirect ?? undefined,
+      datePosted: toStringOrNull(row.date_posted) ?? undefined,
+      title,
+      employer,
+      employerUrl: toStringOrNull(row.company_url) ?? undefined,
+      jobUrl,
+      applicationLink: jobUrlDirect ?? jobUrl,
+      location: toStringOrNull(row.location) ?? undefined,
+      locationEvidence: buildLocationEvidence(
+        toStringOrNull(row.location) ?? null,
+      ),
+      jobDescription,
+      relevanceStatus: classification.status,
+      relevanceReason: classification.reason,
+      status:
+        classification.status === "low_relevance" ? "skipped" : "discovered",
+      salary: salary ?? undefined,
+      jobType: toStringOrNull(row.job_type) ?? undefined,
+      salarySource: toStringOrNull(row.salary_source) ?? undefined,
+      salaryInterval: interval ?? undefined,
+      salaryMinAmount: minAmount ?? undefined,
+      salaryMaxAmount: maxAmount ?? undefined,
+      salaryCurrency: currency ?? undefined,
+      isRemote: toBooleanOrNull(row.is_remote) ?? undefined,
+      jobLevel: toStringOrNull(row.job_level) ?? undefined,
+      jobFunction: toStringOrNull(row.job_function) ?? undefined,
+      listingType: toStringOrNull(row.listing_type) ?? undefined,
+      emails: toJsonStringOrNull(row.emails) ?? undefined,
+      companyIndustry: toStringOrNull(row.company_industry) ?? undefined,
+      companyLogo: toStringOrNull(row.company_logo) ?? undefined,
+      companyUrlDirect: toStringOrNull(row.company_url_direct) ?? undefined,
+      companyAddresses: toJsonStringOrNull(row.company_addresses) ?? undefined,
+      companyNumEmployees:
+        toStringOrNull(row.company_num_employees) ?? undefined,
+      companyRevenue: toStringOrNull(row.company_revenue) ?? undefined,
+      companyDescription: toStringOrNull(row.company_description) ?? undefined,
+      skills: toJsonStringOrNull(row.skills) ?? undefined,
+      experienceRange: toJsonStringOrNull(row.experience_range) ?? undefined,
+      companyRating: toNumberOrNull(row.company_rating) ?? undefined,
+      companyReviewsCount:
+        toNumberOrNull(row.company_reviews_count) ?? undefined,
+      vacancyCount: toNumberOrNull(row.vacancy_count) ?? undefined,
+      workFromHomeType: toStringOrNull(row.work_from_home_type) ?? undefined,
+    });
+  }
+
+  return jobs;
+}
