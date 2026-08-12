@@ -1,5 +1,11 @@
 import type { UpdateSettingsInput } from "@shared/settings-schema.js";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import React from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
@@ -186,7 +192,16 @@ describe("ChatSettingsSection", () => {
     render(<ChatSettingsHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Choose role family" }));
-    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
+    const roleFamilySelect = screen.getByRole("combobox", {
+      name: "Role family",
+    }).parentElement;
+
+    if (!roleFamilySelect) {
+      throw new Error("Role family select container was not rendered");
+    }
+    fireEvent.click(
+      within(roleFamilySelect).getByRole("button", { name: "Custom" }),
+    );
 
     expect(
       screen.getByRole("combobox", { name: "Role family" }),
