@@ -105,6 +105,7 @@ export function DesignResumeHtmlPreview({
         <div
           key={revisionKey}
           className="resume-preview-wrapper w-full bg-white"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: The server renderer escapes resume data; preserving its generated markup and scoped styles is required for the preview.
           dangerouslySetInnerHTML={embedContent || undefined}
         />
 

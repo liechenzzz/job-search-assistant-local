@@ -1,6 +1,7 @@
+import type { ResumeGenerationDecision } from "@shared/resume-generation-decision.js";
 import type {
-  ExperienceCapabilityDigest,
   ExperienceBulletBundle,
+  ExperienceCapabilityDigest,
   JdKeywordProfile,
   JdNormalizedRequirement,
   JdQualificationProfile,
@@ -12,7 +13,6 @@ import type {
   ResumeRequirementTier,
   SelectedResumeEvidence,
 } from "@shared/types";
-import type { ResumeGenerationDecision } from "@shared/resume-generation-decision.js";
 
 export type ResumeContentPlanExperienceSource = {
   id: string;
@@ -61,7 +61,10 @@ export function buildResumeContentPlan(args: {
 }): ResumeContentPlan {
   const targetPages = args.generationDecision.targetPages;
   const requirements = buildRequirementPlans(args);
-  const experiences = collectVisibleExperiences(args.profile, args.sourceExperiences);
+  const experiences = collectVisibleExperiences(
+    args.profile,
+    args.sourceExperiences,
+  );
   const experienceAllocations = allocateExperiences({
     experiences,
     requirements,
@@ -160,7 +163,9 @@ export function buildResumeContentPlan(args: {
   };
 }
 
-export function formatResumeContentPlanForPrompt(plan: ResumeContentPlan): string {
+export function formatResumeContentPlanForPrompt(
+  plan: ResumeContentPlan,
+): string {
   const requirements = plan.requirementTiers
     .slice(0, 12)
     .map(
@@ -199,10 +204,14 @@ export function formatResumeContentPlanForPrompt(plan: ResumeContentPlan): strin
     experiences || "No visible experiences.",
     "",
     "Softened transferable requirements:",
-    plan.softenedRequirements.length ? plan.softenedRequirements.map((item) => `- ${item}`).join("\n") : "None.",
+    plan.softenedRequirements.length
+      ? plan.softenedRequirements.map((item) => `- ${item}`).join("\n")
+      : "None.",
     "",
     "Blocked claims:",
-    plan.blockedClaims.length ? plan.blockedClaims.map((item) => `- ${item}`).join("\n") : "None.",
+    plan.blockedClaims.length
+      ? plan.blockedClaims.map((item) => `- ${item}`).join("\n")
+      : "None.",
     "",
     "Omitted/deemphasized experience:",
     omitted,
@@ -265,9 +274,7 @@ function buildRequirementPlans(args: {
     };
   });
 
-  return plans
-    .sort((a, b) => b.emphasisScore - a.emphasisScore)
-    .slice(0, 12);
+  return plans.sort((a, b) => b.emphasisScore - a.emphasisScore).slice(0, 12);
 }
 
 function allocateExperiences(args: {
@@ -296,18 +303,19 @@ function allocateExperiences(args: {
           }),
     );
     const evidenceChunkIds = Array.from(
-      new Set(
-        [
-          ...(digest?.sourceChunkIds ?? []),
-          ...args.selectedEvidence
-            .filter((item) =>
-              covered.some((requirement) => requirement.requirementId === item.requirementId),
-            )
-            .flatMap((item) => item.chunks.map((chunk) => chunk.chunkId)),
-        ],
-      ),
+      new Set([
+        ...(digest?.sourceChunkIds ?? []),
+        ...args.selectedEvidence
+          .filter((item) =>
+            covered.some(
+              (requirement) => requirement.requirementId === item.requirementId,
+            ),
+          )
+          .flatMap((item) => item.chunks.map((chunk) => chunk.chunkId)),
+      ]),
     ).slice(0, 8);
-    const roleFamilyBonus = args.keywordProfile.roleFamily !== "general" ? 4 : 0;
+    const roleFamilyBonus =
+      args.keywordProfile.roleFamily !== "general" ? 4 : 0;
     const experienceFitScore = Math.round(
       covered.reduce((sum, item) => sum + item.emphasisScore, 0) +
         evidenceChunkIds.length * 4 +
@@ -340,7 +348,10 @@ function allocateExperiences(args: {
       bulletBudget,
       minBulletBudget: minBudget(kind),
       maxBulletBudget: maxBudget(kind, args.targetPages),
-      requiredBulletThemes: (digest?.recommendedBulletThemes ?? []).slice(0, bulletBudget),
+      requiredBulletThemes: (digest?.recommendedBulletThemes ?? []).slice(
+        0,
+        bulletBudget,
+      ),
       coveredRequirementIds: covered.map((item) => item.requirementId),
       evidenceChunkIds,
       reason: reasonForExperience(kind, covered, digest),
@@ -396,8 +407,12 @@ function buildDensityTargets(args: {
       targetExperienceWords: 480,
       minAverageBulletWords: 18,
       targetAverageBulletWords: 24,
-      minRelevantBundleCandidates: Math.min(10, Math.max(0, args.totalBundleCandidates)),
-      reason: "One-page resumes should stay compact while still using evidence-rich bullets.",
+      minRelevantBundleCandidates: Math.min(
+        10,
+        Math.max(0, args.totalBundleCandidates),
+      ),
+      reason:
+        "One-page resumes should stay compact while still using evidence-rich bullets.",
     };
   }
   return {
@@ -418,12 +433,21 @@ function buildExperienceBulletBundleCandidates(args: {
   experienceDigests: ExperienceCapabilityDigest[];
   targetPages: 1 | 2;
 }): ExperienceBulletBundle[] {
-  const requirementsById = new Map(args.requirements.map((item) => [item.requirementId, item]));
+  const requirementsById = new Map(
+    args.requirements.map((item) => [item.requirementId, item]),
+  );
   const evidenceByRequirement = new Map<string, SelectedResumeEvidence[]>();
   for (const item of args.selectedEvidence) {
-    if (item.status !== "selected" && item.status !== "transferable_only") continue;
-    for (const key of uniqueStrings([item.requirementId, normalize(item.requirement)])) {
-      evidenceByRequirement.set(key, [...(evidenceByRequirement.get(key) ?? []), item]);
+    if (item.status !== "selected" && item.status !== "transferable_only")
+      continue;
+    for (const key of uniqueStrings([
+      item.requirementId,
+      normalize(item.requirement),
+    ])) {
+      evidenceByRequirement.set(key, [
+        ...(evidenceByRequirement.get(key) ?? []),
+        item,
+      ]);
     }
   }
   const digestByComparableId = new Map(
@@ -435,7 +459,9 @@ function buildExperienceBulletBundleCandidates(args: {
   const bundles: ExperienceBulletBundle[] = [];
   for (const allocation of args.allocations) {
     if (allocation.kind === "omit" || allocation.bulletBudget <= 0) continue;
-    const digest = digestByComparableId.get(comparableExperienceId(allocation.experienceId));
+    const digest = digestByComparableId.get(
+      comparableExperienceId(allocation.experienceId),
+    );
     const requirementIds = uniqueStrings([
       ...allocation.coveredRequirementIds,
       ...(digest?.matchedRequirementIds ?? []),
@@ -443,18 +469,24 @@ function buildExperienceBulletBundleCandidates(args: {
     const evidenceItems = uniqueEvidence(
       requirementIds.flatMap((id) => [
         ...(evidenceByRequirement.get(id) ?? []),
-        ...(evidenceByRequirement.get(normalize(requirementsById.get(id)?.requirement ?? "")) ?? []),
+        ...(evidenceByRequirement.get(
+          normalize(requirementsById.get(id)?.requirement ?? ""),
+        ) ?? []),
       ]),
     );
     const baseChunkIds = uniqueStrings([
       ...allocation.evidenceChunkIds,
       ...(digest?.sourceChunkIds ?? []),
-      ...evidenceItems.flatMap((item) => item.chunks.map((chunk) => chunk.chunkId)),
+      ...evidenceItems.flatMap((item) =>
+        item.chunks.map((chunk) => chunk.chunkId),
+      ),
     ]);
     const blockedClaims = uniqueStrings([
       ...(digest?.blockedClaims ?? []),
       ...evidenceItems.flatMap((item) => item.blockedClaims ?? []),
-      ...requirementIds.flatMap((id) => requirementsById.get(id)?.blockedClaims ?? []),
+      ...requirementIds.flatMap(
+        (id) => requirementsById.get(id)?.blockedClaims ?? [],
+      ),
     ]).slice(0, 6);
     const claimEntries = uniqueStrings([
       ...(digest?.recommendedBulletThemes ?? []),
@@ -469,7 +501,10 @@ function buildExperienceBulletBundleCandidates(args: {
     const claimsByTheme = new Map<string, string[]>();
     for (const claim of claimEntries) {
       const theme = claimTheme(claim, requirementIds, requirementsById);
-      claimsByTheme.set(theme, uniqueStrings([...(claimsByTheme.get(theme) ?? []), claim]).slice(0, 3));
+      claimsByTheme.set(
+        theme,
+        uniqueStrings([...(claimsByTheme.get(theme) ?? []), claim]).slice(0, 3),
+      );
     }
 
     for (const [theme, claims] of claimsByTheme) {
@@ -484,24 +519,33 @@ function buildExperienceBulletBundleCandidates(args: {
       const relevantEvidence = uniqueEvidence(
         selectedRequirementIds.flatMap((id) => [
           ...(evidenceByRequirement.get(id) ?? []),
-          ...(evidenceByRequirement.get(normalize(requirementsById.get(id)?.requirement ?? "")) ?? []),
+          ...(evidenceByRequirement.get(
+            normalize(requirementsById.get(id)?.requirement ?? ""),
+          ) ?? []),
         ]),
       );
       const fit = fitForBundle(relevantEvidence, allocation, digest);
       if (fit === "weak" || fit === "unsupported") continue;
       const sourceChunkIds = uniqueStrings([
         ...baseChunkIds,
-        ...relevantEvidence.flatMap((item) => item.chunks.map((chunk) => chunk.chunkId)),
+        ...relevantEvidence.flatMap((item) =>
+          item.chunks.map((chunk) => chunk.chunkId),
+        ),
       ]).slice(0, 6);
       if (sourceChunkIds.length === 0) continue;
       bundles.push({
         bundleId: `${allocation.experienceId}:bundle:${bundles.length + 1}`,
         experienceId: allocation.experienceId,
         theme,
-        requiredClaims: claims.slice(0, recommendedClaimCount(args.targetPages, allocation.kind)),
+        requiredClaims: claims.slice(
+          0,
+          recommendedClaimCount(args.targetPages, allocation.kind),
+        ),
         sourceChunkIds,
         anchorId: relevantEvidence
-          .flatMap((item) => item.chunks.map((chunk) => chunk.experienceAnchorId))
+          .flatMap((item) =>
+            item.chunks.map((chunk) => chunk.experienceAnchorId),
+          )
           .find((id): id is string => Boolean(id)),
         matchedRequirementIds: selectedRequirementIds,
         fit,
@@ -517,7 +561,11 @@ function buildExperienceBulletBundleCandidates(args: {
     }
   }
   return uniqueBundles(bundles)
-    .sort((a, b) => bundlePriority(b, requirementsById) - bundlePriority(a, requirementsById))
+    .sort(
+      (a, b) =>
+        bundlePriority(b, requirementsById) -
+        bundlePriority(a, requirementsById),
+    )
     .slice(0, 48);
 }
 
@@ -549,7 +597,10 @@ function isBlockedClaim(claim: string, blockedClaims: string[]): boolean {
   const normalizedClaim = normalize(claim);
   return blockedClaims.some((blocked) => {
     const normalizedBlocked = normalize(blocked);
-    return normalizedBlocked.length > 0 && normalizedClaim.includes(normalizedBlocked);
+    return (
+      normalizedBlocked.length > 0 &&
+      normalizedClaim.includes(normalizedBlocked)
+    );
   });
 }
 
@@ -563,7 +614,9 @@ function claimTheme(
     .map((id) => requirementsById.get(id))
     .filter((item): item is ResumeContentPlanRequirement => Boolean(item))
     .find((requirement) =>
-      tokenize(requirement.requirement).some((term) => claimText.includes(term)),
+      tokenize(requirement.requirement).some((term) =>
+        claimText.includes(term),
+      ),
     );
   if (matchedRequirement) return truncate(matchedRequirement.requirement, 80);
   const terms = tokenize(claim).slice(0, 5);
@@ -581,7 +634,10 @@ function matchedRequirementsForClaim(
     if (!requirement) return false;
     const terms = tokenize(requirement.requirement).slice(0, 8);
     if (terms.length === 0) return false;
-    return terms.filter((term) => claimText.includes(term)).length >= Math.min(2, terms.length);
+    return (
+      terms.filter((term) => claimText.includes(term)).length >=
+      Math.min(2, terms.length)
+    );
   });
 }
 
@@ -590,8 +646,15 @@ function fitForBundle(
   allocation: ResumeContentPlanExperienceAllocation,
   digest?: ExperienceCapabilityDigest,
 ): ExperienceBulletBundle["fit"] {
-  if (evidence.some((item) => (item.fit ?? statusFit(item.status)) === "direct")) return "direct";
-  if (evidence.some((item) => (item.fit ?? statusFit(item.status)) === "transferable")) {
+  if (
+    evidence.some((item) => (item.fit ?? statusFit(item.status)) === "direct")
+  )
+    return "direct";
+  if (
+    evidence.some(
+      (item) => (item.fit ?? statusFit(item.status)) === "transferable",
+    )
+  ) {
     return "transferable";
   }
   if (digest?.confidence && digest.sourceChunkIds.length > 0) {
@@ -614,9 +677,12 @@ function recommendedDepthForBundle(args: {
   allocation: ResumeContentPlanExperienceAllocation;
   targetPages: 1 | 2;
 }): ExperienceBulletBundle["recommendedDepth"] {
-  if (args.targetPages === 1) return args.fit === "direct" ? "standard" : "concise";
-  if (args.fit === "direct" && args.allocation.kind === "primary") return "deep";
-  if (args.fit === "direct" || args.allocation.kind === "supporting") return "standard";
+  if (args.targetPages === 1)
+    return args.fit === "direct" ? "standard" : "concise";
+  if (args.fit === "direct" && args.allocation.kind === "primary")
+    return "deep";
+  if (args.fit === "direct" || args.allocation.kind === "supporting")
+    return "standard";
   return "concise";
 }
 
@@ -629,7 +695,9 @@ function recommendedClaimCount(
   return 2;
 }
 
-function uniqueBundles(bundles: ExperienceBulletBundle[]): ExperienceBulletBundle[] {
+function uniqueBundles(
+  bundles: ExperienceBulletBundle[],
+): ExperienceBulletBundle[] {
   const seen = new Set<string>();
   const out: ExperienceBulletBundle[] = [];
   for (const bundle of bundles) {
@@ -648,7 +716,9 @@ function uniqueBundles(bundles: ExperienceBulletBundle[]): ExperienceBulletBundl
   }));
 }
 
-function uniqueEvidence(items: SelectedResumeEvidence[]): SelectedResumeEvidence[] {
+function uniqueEvidence(
+  items: SelectedResumeEvidence[],
+): SelectedResumeEvidence[] {
   const seen = new Set<string>();
   const out: SelectedResumeEvidence[] = [];
   for (const item of items) {
@@ -664,7 +734,8 @@ function bundlePriority(
   bundle: ExperienceBulletBundle,
   requirementsById: Map<string, ResumeContentPlanRequirement>,
 ): number {
-  const fitScore = bundle.fit === "direct" ? 40 : bundle.fit === "transferable" ? 22 : 0;
+  const fitScore =
+    bundle.fit === "direct" ? 40 : bundle.fit === "transferable" ? 22 : 0;
   const confidenceScore =
     bundle.confidence === "high" ? 12 : bundle.confidence === "medium" ? 6 : 0;
   const requirementScore = bundle.matchedRequirementIds.reduce(
@@ -672,11 +743,23 @@ function bundlePriority(
     0,
   );
   const depthScore =
-    bundle.recommendedDepth === "deep" ? 8 : bundle.recommendedDepth === "standard" ? 4 : 0;
-  return fitScore + confidenceScore + requirementScore + depthScore + bundle.sourceChunkIds.length;
+    bundle.recommendedDepth === "deep"
+      ? 8
+      : bundle.recommendedDepth === "standard"
+        ? 4
+        : 0;
+  return (
+    fitScore +
+    confidenceScore +
+    requirementScore +
+    depthScore +
+    bundle.sourceChunkIds.length
+  );
 }
 
-function getRequirements(profile: JdQualificationProfile): JdNormalizedRequirement[] {
+function getRequirements(
+  profile: JdQualificationProfile,
+): JdNormalizedRequirement[] {
   if (profile.requirements?.length) return profile.requirements.slice(0, 12);
   return [
     ...profile.required.slice(0, 8).map((text, index) => ({
@@ -716,16 +799,23 @@ function collectVisibleExperiences(
           period?: string;
         };
         const sourceText =
-          sourceExperiences.find((source) => source.id === item.id)?.sourceText ??
-          stripHtml([item.summary, record.description].filter(Boolean).join(" "));
+          sourceExperiences.find((source) => source.id === item.id)
+            ?.sourceText ??
+          stripHtml(
+            [item.summary, record.description].filter(Boolean).join(" "),
+          );
         const id = item.id || `experience-${index}`;
-        const label = [item.position, item.company].filter(Boolean).join(" at ");
+        const label = [item.position, item.company]
+          .filter(Boolean)
+          .join(" at ");
         return {
           id,
           label: label || id,
           company: item.company ?? "",
           position: item.position ?? "",
-          text: [item.company, item.position, sourceText].filter(Boolean).join(" "),
+          text: [item.company, item.position, sourceText]
+            .filter(Boolean)
+            .join(" "),
         };
       }) ?? []
   );
@@ -751,9 +841,9 @@ function experienceMatchesRequirement(args: {
           chunkText.includes(normalize(args.experience.company))) ||
         (args.experience.position &&
           chunkText.includes(normalize(args.experience.position))) ||
-        tokenize(args.experience.text).slice(0, 12).some((term) =>
-          chunkText.includes(term),
-        )
+        tokenize(args.experience.text)
+          .slice(0, 12)
+          .some((term) => chunkText.includes(term))
       );
     });
   });
@@ -769,7 +859,11 @@ function tierForRequirement(args: {
   if (args.fit === "direct" && (args.mustHave || args.emphasisScore >= 82)) {
     return "core";
   }
-  if (args.fit === "direct" || args.fit === "transferable" || args.priority >= 2) {
+  if (
+    args.fit === "direct" ||
+    args.fit === "transferable" ||
+    args.priority >= 2
+  ) {
     return "major";
   }
   return "minor";
@@ -837,7 +931,10 @@ function minBudget(kind: ResumeExperienceAllocationKind): number {
   return 0;
 }
 
-function maxBudget(kind: ResumeExperienceAllocationKind, targetPages: 1 | 2 = 1): number {
+function maxBudget(
+  kind: ResumeExperienceAllocationKind,
+  targetPages: 1 | 2 = 1,
+): number {
   if (targetPages === 2) {
     if (kind === "primary") return 10;
     if (kind === "supporting") return 8;
@@ -850,7 +947,9 @@ function maxBudget(kind: ResumeExperienceAllocationKind, targetPages: 1 | 2 = 1)
   return 0;
 }
 
-function fitLevelBonus(fitLevel: ExperienceCapabilityDigest["fitLevel"] | undefined): number {
+function fitLevelBonus(
+  fitLevel: ExperienceCapabilityDigest["fitLevel"] | undefined,
+): number {
   if (fitLevel === "primary") return 36;
   if (fitLevel === "relevant") return 18;
   return 0;
@@ -870,8 +969,10 @@ function reasonForRequirement(
   mentions: number,
 ): string {
   if (tier === "blocked") return `Blocked because evidence fit is ${fit}.`;
-  if (tier === "core") return `Core because JD emphasis is high and evidence fit is ${fit}; mentions=${mentions}.`;
-  if (tier === "major") return `Relevant enough to cover with ${fit} evidence; mentions=${mentions}.`;
+  if (tier === "core")
+    return `Core because JD emphasis is high and evidence fit is ${fit}; mentions=${mentions}.`;
+  if (tier === "major")
+    return `Relevant enough to cover with ${fit} evidence; mentions=${mentions}.`;
   return `Minor requirement; include only if space remains; mentions=${mentions}.`;
 }
 
@@ -880,9 +981,11 @@ function reasonForExperience(
   covered: ResumeContentPlanRequirement[],
   digest?: ExperienceCapabilityDigest,
 ): string {
-  if (kind === "omit") return "Low JD overlap and not needed for compact resume evidence.";
+  if (kind === "omit")
+    return "Low JD overlap and not needed for compact resume evidence.";
   if (digest?.capabilitySummary) return digest.capabilitySummary;
-  if (kind === "background") return "Kept for continuity with four concise evidence-grounded bullets.";
+  if (kind === "background")
+    return "Kept for continuity with four concise evidence-grounded bullets.";
   if (covered.length === 0) {
     return "Kept with multiple bullets for recent/core experience continuity; exact JD overlap is uncertain.";
   }
@@ -906,7 +1009,9 @@ function countRequirementMentions(text: string, requirement: string): number {
   const terms = tokenize(requirement).slice(0, 8);
   if (terms.length === 0) return 0;
   return terms.reduce((sum, term) => {
-    const matches = haystack.match(new RegExp(`\\b${escapeRegExp(term)}\\b`, "g"));
+    const matches = haystack.match(
+      new RegExp(`\\b${escapeRegExp(term)}\\b`, "g"),
+    );
     return sum + (matches?.length ?? 0);
   }, 0);
 }

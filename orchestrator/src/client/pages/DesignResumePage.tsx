@@ -101,7 +101,7 @@ export const DesignResumePage: React.FC = () => {
     setDraft(null);
     setDirty(false);
     setSaveState("idle");
-  }, [document, isLoading, status, activeVariant]);
+  }, [document, isLoading, status]);
 
   useEffect(() => {
     if (
@@ -198,10 +198,13 @@ export const DesignResumePage: React.FC = () => {
       const documentSnapshot = structuredClone(draft.resumeJson);
 
       setSaveState("saving");
-      const updated = await api.updateDesignResume({
-        baseRevision,
-        document: documentSnapshot,
-      }, activeVariant);
+      const updated = await api.updateDesignResume(
+        {
+          baseRevision,
+          document: documentSnapshot,
+        },
+        activeVariant,
+      );
 
       if (editVersionRef.current === editVersionAtStart) {
         setDesignResume(updated);
@@ -371,12 +374,15 @@ export const DesignResumePage: React.FC = () => {
 
       const dataUrl = await fileToDataUrl(file);
       const editVersionAtStart = editVersionRef.current;
-      const updated = await api.uploadDesignResumePicture({
-        fileName: file.name,
-        dataUrl,
-        baseRevision: latestDraft.revision,
-        document: latestDraft.resumeJson,
-      }, activeVariant);
+      const updated = await api.uploadDesignResumePicture(
+        {
+          fileName: file.name,
+          dataUrl,
+          baseRevision: latestDraft.revision,
+          document: latestDraft.resumeJson,
+        },
+        activeVariant,
+      );
       if (editVersionRef.current === editVersionAtStart) {
         setDesignResume(updated);
       } else {
@@ -410,10 +416,13 @@ export const DesignResumePage: React.FC = () => {
       if (!latestDraft) return;
 
       const editVersionAtStart = editVersionRef.current;
-      const updated = await api.deleteDesignResumePicture({
-        baseRevision: latestDraft.revision,
-        document: latestDraft.resumeJson,
-      }, activeVariant);
+      const updated = await api.deleteDesignResumePicture(
+        {
+          baseRevision: latestDraft.revision,
+          document: latestDraft.resumeJson,
+        },
+        activeVariant,
+      );
       if (editVersionRef.current === editVersionAtStart) {
         setDesignResume(updated);
       } else {
@@ -523,7 +532,7 @@ export const DesignResumePage: React.FC = () => {
         subtitle="Edit your resume details"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap sm:justify-end">
-            <div
+            <fieldset
               className="flex rounded-lg border border-border/70 bg-muted/20 p-1"
               aria-label="Choose resume master"
             >
@@ -545,7 +554,7 @@ export const DesignResumePage: React.FC = () => {
               >
                 2 pages
               </Button>
-            </div>
+            </fieldset>
 
             <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
               <SheetTrigger asChild>
@@ -827,8 +836,8 @@ export const DesignResumePage: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Re-import from RxResume?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will replace your current {activeMasterLabel} with the latest data
-              from RxResume. Any edits you've made here will be permanently
+              This will replace your current {activeMasterLabel} with the latest
+              data from RxResume. Any edits you've made here will be permanently
               overwritten and cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

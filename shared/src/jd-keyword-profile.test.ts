@@ -32,9 +32,16 @@ describe("buildJdKeywordProfile", () => {
         "Prepare municipal policy analysis, economic development briefings, and labour market research using NOC and NAICS evidence.",
     });
 
-    expect(profile.roleFamily).toBe("public_sector_policy_economic_development");
+    expect(profile.roleFamily).toBe(
+      "public_sector_policy_economic_development",
+    );
     expect(profile.domainKeywordsPresent).toEqual(
-      expect.arrayContaining(["municipal", "economic development", "NOC", "NAICS"]),
+      expect.arrayContaining([
+        "municipal",
+        "economic development",
+        "NOC",
+        "NAICS",
+      ]),
     );
     expect(profile.blockedUnlessPresent).not.toContain("NOC");
     expect(profile.blockedUnlessPresent).not.toContain("NAICS");
@@ -49,7 +56,9 @@ describe("buildJdKeywordProfile", () => {
     });
 
     expect(profile.roleFamily).toBe("consulting_strategy");
-    expect(profile.experienceFocus).toEqual(expect.arrayContaining(["strategy work"]));
+    expect(profile.experienceFocus).toEqual(
+      expect.arrayContaining(["strategy work"]),
+    );
   });
 
   it("blocks public-sector domain terms for lululemon enterprise strategy JDs", () => {

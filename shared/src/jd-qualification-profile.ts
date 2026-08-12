@@ -1,9 +1,9 @@
+import { isNonScoredQualificationText } from "./qualification-semantics.js";
 import type {
   JdNormalizedRequirement,
   JdQualificationProfile,
   JdRequirementCategory,
 } from "./types";
-import { isNonScoredQualificationText } from "./qualification-semantics.js";
 
 const REQUIRED_HEADINGS = [
   "qualifications",
@@ -108,8 +108,10 @@ const STOP_HEADINGS = [
   "legal",
 ];
 
-const PREFERRED_RE = /\b(preferred|asset|nice to have|considered an asset|bonus|ideally|would be an asset)\b/i;
-const REQUIRED_RE = /\b(required|must|minimum|need|needs|qualification|experience|degree|diploma|proficien|ability|knowledge|skill|familiarity)\b/i;
+const PREFERRED_RE =
+  /\b(preferred|asset|nice to have|considered an asset|bonus|ideally|would be an asset)\b/i;
+const REQUIRED_RE =
+  /\b(required|must|minimum|need|needs|qualification|experience|degree|diploma|proficien|ability|knowledge|skill|familiarity)\b/i;
 
 const KEYWORD_PHRASES = [
   "stakeholder engagement",
@@ -200,11 +202,9 @@ export function buildJdQualificationProfile(args: {
     }
   }
 
-  const keywords = extractKeywords([
-    args.title ?? "",
-    required.join(" "),
-    preferred.join(" "),
-  ].join("\n"));
+  const keywords = extractKeywords(
+    [args.title ?? "", required.join(" "), preferred.join(" ")].join("\n"),
+  );
 
   return {
     required: required.slice(0, 8),
@@ -269,8 +269,10 @@ function buildNormalizedRequirements(args: {
       id: `kw-${requirements.length + 1}`,
       text,
       category,
-      priority: category === "tool" || category === "domain" ? 45 - index : 35 - index,
-      targetSections: category === "tool" || category === "skill" ? ["skills"] : ["summary"],
+      priority:
+        category === "tool" || category === "domain" ? 45 - index : 35 - index,
+      targetSections:
+        category === "tool" || category === "skill" ? ["skills"] : ["summary"],
       mustHave: false,
       evidenceNeeded: "optional",
     });
@@ -284,7 +286,10 @@ function buildNormalizedRequirements(args: {
 }
 
 function normalizeRequirementKey(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9+#.]+/g, " ").trim();
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9+#.]+/g, " ")
+    .trim();
 }
 
 function inferRequirementCategory(text: string): JdRequirementCategory {
@@ -292,16 +297,32 @@ function inferRequirementCategory(text: string): JdRequirementCategory {
   if (/\b(degree|diploma|bachelor|master|education|academic)\b/.test(lower)) {
     return "education";
   }
-  if (/\b(sql|python|excel|power\s*bi|tableau|sas|r\b|javascript|typescript|crm|salesforce)\b/.test(lower)) {
+  if (
+    /\b(sql|python|excel|power\s*bi|tableau|sas|r\b|javascript|typescript|crm|salesforce)\b/.test(
+      lower,
+    )
+  ) {
     return "tool";
   }
-  if (/\b(policy|government|public sector|market|industry|infrastructure|procurement|healthcare|finance|insurance)\b/.test(lower)) {
+  if (
+    /\b(policy|government|public sector|market|industry|infrastructure|procurement|healthcare|finance|insurance)\b/.test(
+      lower,
+    )
+  ) {
     return "domain";
   }
-  if (/\b(communicat|stakeholder|presentation|collaborat|leadership|relationship|interpersonal)\b/.test(lower)) {
+  if (
+    /\b(communicat|stakeholder|presentation|collaborat|leadership|relationship|interpersonal)\b/.test(
+      lower,
+    )
+  ) {
     return "soft_skill";
   }
-  if (/\b(responsib|coordinate|manage|lead|deliver|develop|prepare|conduct|analy[sz]e|report|research|support)\b/.test(lower)) {
+  if (
+    /\b(responsib|coordinate|manage|lead|deliver|develop|prepare|conduct|analy[sz]e|report|research|support)\b/.test(
+      lower,
+    )
+  ) {
     return "responsibility";
   }
   if (/\b(skill|proficien|ability|knowledge|familiarity)\b/.test(lower)) {
@@ -313,7 +334,8 @@ function inferRequirementCategory(text: string): JdRequirementCategory {
 function inferRequirementTargetSections(text: string): string[] {
   const category = inferRequirementCategory(text);
   if (category === "education") return ["education"];
-  if (category === "tool" || category === "skill") return ["skills", "experience"];
+  if (category === "tool" || category === "skill")
+    return ["skills", "experience"];
   if (category === "domain") return ["summary", "experience", "skills"];
   if (category === "soft_skill") return ["summary", "experience"];
   return ["experience", "projects", "summary"];
@@ -379,10 +401,7 @@ function extractQualificationSection(jd: string): {
       pushUnique(ignoredAdminLines, adminTag, 8);
       continue;
     }
-    if (
-      selected.length > 0 &&
-      isStopHeading(normalized)
-    ) {
+    if (selected.length > 0 && isStopHeading(normalized)) {
       break;
     }
     selected.push(lines[i]);
@@ -397,13 +416,18 @@ function extractQualificationSection(jd: string): {
 
 function isRequiredHeading(normalized: string): boolean {
   if (!normalized) return false;
-  if (/\bdescription\b/.test(normalized) && /\brequirements?\b/.test(normalized)) {
+  if (
+    /\bdescription\b/.test(normalized) &&
+    /\brequirements?\b/.test(normalized)
+  ) {
     return false;
   }
   return REQUIRED_HEADINGS.some((heading) => {
     if (normalized === heading) return true;
     if (normalized.endsWith(` ${heading}`)) return true;
-    return normalized.includes(heading) && normalized.length <= heading.length + 24;
+    return (
+      normalized.includes(heading) && normalized.length <= heading.length + 24
+    );
   });
 }
 
@@ -411,10 +435,16 @@ function isStopHeading(normalized: string): boolean {
   if (!normalized) return false;
   return STOP_HEADINGS.some((heading) => {
     if (normalized === heading) return true;
-    if (normalized.endsWith(` ${heading}`) && normalized.length <= heading.length + 24) {
+    if (
+      normalized.endsWith(` ${heading}`) &&
+      normalized.length <= heading.length + 24
+    ) {
       return true;
     }
-    if (normalized.startsWith(`${heading} `) && normalized.length <= heading.length + 80) {
+    if (
+      normalized.startsWith(`${heading} `) &&
+      normalized.length <= heading.length + 80
+    ) {
       return true;
     }
     return false;
@@ -430,11 +460,7 @@ function splitRequirementLines(text: string): string[] {
     .flatMap((line) =>
       line.split(/(?<=[.;])(?<!\b[a-z]\.[a-z]?\.?)\s+(?=[A-Z])/),
     )
-    .map((line) =>
-      line
-        .replace(/^(?:[-*•]\s*|\d+[.)]\s*)+/, "")
-        .trim(),
-    )
+    .map((line) => line.replace(/^(?:[-*•]\s*|\d+[.)]\s*)+/, "").trim())
     .filter((line) => line.length >= 8 && line.length <= 400);
 }
 
@@ -458,12 +484,17 @@ function expandContractions(text: string): string {
 }
 
 function getAdministrativeLineTag(text: string): string | null {
-  const normalized = expandContractions(normalizeWhitespace(text).toLowerCase());
+  const normalized = expandContractions(
+    normalizeWhitespace(text).toLowerCase(),
+  );
   if (!normalized) return null;
   if (/\bequally important to what we do is how we do it\b/.test(normalized)) {
     return "Values Statement";
   }
-  if (/\bfurther information is available\b/.test(normalized) || /\bwww\.|https?:\/\//.test(normalized)) {
+  if (
+    /\bfurther information is available\b/.test(normalized) ||
+    /\bwww\.|https?:\/\//.test(normalized)
+  ) {
     return "JobOpps Link";
   }
   if (/\beducation equivalency policy\b/.test(normalized)) {
@@ -476,9 +507,7 @@ function getAdministrativeLineTag(text: string): string | null {
     return "Hours";
   }
   if (
-    /^(wage|salary|pay|pay range|rate of pay|compensation)\s*:/.test(
-      normalized,
-    )
+    /^(wage|salary|pay|pay range|rate of pay|compensation)\s*:/.test(normalized)
   ) {
     return "Wage";
   }
@@ -496,7 +525,11 @@ function getAdministrativeLineTag(text: string): string | null {
   ) {
     return "Company Description";
   }
-  if (/\b(founded in|we are a|we're a leading|is a leading|is one of the|a fortune|a global|global leader)\b/.test(normalized)) {
+  if (
+    /\b(founded in|we are a|we're a leading|is a leading|is one of the|a fortune|a global|global leader)\b/.test(
+      normalized,
+    )
+  ) {
     return "Company Description";
   }
   if (
@@ -585,13 +618,17 @@ function extractKeywords(text: string): string[] {
   const out: string[] = [];
 
   for (const phrase of KEYWORD_PHRASES) {
-    if (normalized.includes(phrase)) pushUnique(out, toTitleKeyword(phrase), 20);
+    if (normalized.includes(phrase))
+      pushUnique(out, toTitleKeyword(phrase), 20);
   }
 
   const acronyms = original.match(/\b[A-Z]{2,6}\b/g) ?? [];
   for (const acronym of acronyms) pushUnique(out, acronym, 20);
 
-  const toolMatches = normalized.match(/\b(power bi|tableau|sql|python|excel|sas|r|salesforce|sharepoint)\b/gi) ?? [];
+  const toolMatches =
+    normalized.match(
+      /\b(power bi|tableau|sql|python|excel|sas|r|salesforce|sharepoint)\b/gi,
+    ) ?? [];
   for (const tool of toolMatches) pushUnique(out, toTitleKeyword(tool), 20);
 
   return out;
@@ -606,7 +643,10 @@ function normalizeHeading(value: string): string {
 }
 
 function normalizeWhitespace(value: string): string {
-  return value.replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ").trim();
+  return value
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .trim();
 }
 
 function pushUnique(values: string[], value: string, max: number): void {

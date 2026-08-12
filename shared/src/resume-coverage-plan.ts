@@ -1,9 +1,3 @@
-import type {
-  JdQualificationProfile,
-  ResumeCoveragePlan,
-  ResumeCoveragePlanItem,
-  ResumeReferenceScanItem,
-} from "./types";
 import {
   allowedEvidenceSectionsForQualification,
   hasSemanticCoverage,
@@ -11,6 +5,12 @@ import {
   inferQualificationSemanticType,
   normalizeEvidenceSection,
 } from "./qualification-semantics.js";
+import type {
+  JdQualificationProfile,
+  ResumeCoveragePlan,
+  ResumeCoveragePlanItem,
+  ResumeReferenceScanItem,
+} from "./types";
 
 const STOPWORDS = new Set([
   "and",
@@ -42,7 +42,13 @@ const TRANSFERABLE_SIGNAL_GROUPS: Array<{
   targetSections: string[];
 }> = [
   {
-    triggers: ["strategy", "strategic", "planning", "roadmap", "prioritization"],
+    triggers: [
+      "strategy",
+      "strategic",
+      "planning",
+      "roadmap",
+      "prioritization",
+    ],
     signals: [
       "strategy",
       "strategic planning",
@@ -70,7 +76,14 @@ const TRANSFERABLE_SIGNAL_GROUPS: Array<{
     targetSections: ["summary", "experience"],
   },
   {
-    triggers: ["data", "analytics", "analysis", "dashboard", "reporting", "kpi"],
+    triggers: [
+      "data",
+      "analytics",
+      "analysis",
+      "dashboard",
+      "reporting",
+      "kpi",
+    ],
     signals: [
       "data analysis",
       "analytics",
@@ -100,7 +113,13 @@ const TRANSFERABLE_SIGNAL_GROUPS: Array<{
     targetSections: ["summary", "experience", "skills"],
   },
   {
-    triggers: ["project", "coordination", "manage", "implementation", "timeline"],
+    triggers: [
+      "project",
+      "coordination",
+      "manage",
+      "implementation",
+      "timeline",
+    ],
     signals: [
       "project coordination",
       "project management",
@@ -267,7 +286,9 @@ export function buildResumeCoveragePlan(args: {
           ...transferableSections.map((section) => `resume:${section}`),
           ...weakSections.map((section) => `resume:${section}`),
           ...directReferenceSources.map((source) => `reference:${source}`),
-          ...transferableReferenceSources.map((source) => `reference:${source}`),
+          ...transferableReferenceSources.map(
+            (source) => `reference:${source}`,
+          ),
         ].slice(0, 5),
         evidenceStatus,
         targetSections,
@@ -362,10 +383,18 @@ function inferTargetSections(
   if (semanticType === "credential/license") {
     return ["education", "skills"];
   }
-  if (/\b(degree|education|bachelor|master|diploma|certification)\b/.test(normalized)) {
+  if (
+    /\b(degree|education|bachelor|master|diploma|certification)\b/.test(
+      normalized,
+    )
+  ) {
     pushUnique(sections, "education", 5);
   }
-  if (/\b(skill|excel|power bi|tableau|sql|python|sas|french|bilingual)\b/.test(normalized)) {
+  if (
+    /\b(skill|excel|power bi|tableau|sql|python|sas|french|bilingual)\b/.test(
+      normalized,
+    )
+  ) {
     pushUnique(sections, "skills", 5);
   }
   if (/\b(project|portfolio|case study|dashboard|report)\b/.test(normalized)) {
@@ -392,8 +421,12 @@ function buildReferenceTextForSemantic(
         item.fileName,
         item.sections.join(" "),
         item.keywords?.join(" "),
-        item.sections.some((section) => normalizeEvidenceSection(section) === "education")
-          ? [item.snippets?.summary, item.snippets?.experience].filter(Boolean).join(" ")
+        item.sections.some(
+          (section) => normalizeEvidenceSection(section) === "education",
+        )
+          ? [item.snippets?.summary, item.snippets?.experience]
+              .filter(Boolean)
+              .join(" ")
           : "",
       ]
         .filter(Boolean)
@@ -418,14 +451,15 @@ function buildReferenceTextForSemantic(
 function requirementKeywords(requirement: string): string[] {
   const normalized = normalizeText(requirement);
   const phrases =
-    normalized.match(
-      /\b[a-z][a-z0-9+#.-]*(?:\s+[a-z][a-z0-9+#.-]*){1,3}\b/g,
-    ) ?? [];
+    normalized.match(/\b[a-z][a-z0-9+#.-]*(?:\s+[a-z][a-z0-9+#.-]*){1,3}\b/g) ??
+    [];
   const words = normalized
     .split(/[^a-z0-9+#.-]+/)
     .filter((word) => word.length >= 4 && !STOPWORDS.has(word));
   const out: string[] = [];
-  for (const keyword of [...phrases, ...words].sort((a, b) => b.length - a.length)) {
+  for (const keyword of [...phrases, ...words].sort(
+    (a, b) => b.length - a.length,
+  )) {
     const value = keyword.trim();
     if (!value) continue;
     if (out.some((existing) => existing === value)) continue;
@@ -437,7 +471,9 @@ function requirementKeywords(requirement: string): string[] {
 
 function hasStrongCoverage(text: string, keywords: string[]): boolean {
   if (!text || keywords.length === 0) return false;
-  if (keywords.some((keyword) => keyword.includes(" ") && text.includes(keyword))) {
+  if (
+    keywords.some((keyword) => keyword.includes(" ") && text.includes(keyword))
+  ) {
     return true;
   }
   const wordHits = keywords.filter(
@@ -463,7 +499,11 @@ function normalizeText(value: string): string {
 function pushUnique(values: string[], value: string, max: number): void {
   const normalized = value.trim();
   if (!normalized) return;
-  if (values.some((existing) => existing.toLowerCase() === normalized.toLowerCase())) {
+  if (
+    values.some(
+      (existing) => existing.toLowerCase() === normalized.toLowerCase(),
+    )
+  ) {
     return;
   }
   if (values.length >= max) return;

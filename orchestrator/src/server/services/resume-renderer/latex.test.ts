@@ -164,12 +164,7 @@ describe("latex resume renderer", () => {
       roleFamily: "consulting_strategy" as const,
       requiredKeywords: ["strategy"],
       domainKeywordsPresent: [],
-      blockedUnlessPresent: [
-        "NOC",
-        "NAICS",
-        "RTRA",
-        "municipal stakeholder",
-      ],
+      blockedUnlessPresent: ["NOC", "NAICS", "RTRA", "municipal stakeholder"],
       experienceFocus: ["strategy work"],
     };
     const sanitized = sanitizeLatexDocumentForDomainGate(
@@ -214,7 +209,7 @@ describe("latex resume renderer", () => {
         ...baseDocument,
         experience: [
           {
-            title: "City of Mississauga",
+            title: "Example Municipality",
             subtitle: "Economic Development Analyst | Mississauga",
             date: "2024",
             bullets: ["Prepared executive-ready planning analysis."],

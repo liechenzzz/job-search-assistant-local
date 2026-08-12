@@ -1,4 +1,7 @@
-import type { JdQualificationProfile, ResumeReferenceChunk } from "@shared/types";
+import type {
+  JdQualificationProfile,
+  ResumeReferenceChunk,
+} from "@shared/types";
 import { describe, expect, it, vi } from "vitest";
 import { rerankSelectedResumeEvidence } from "./resume-evidence-rerank";
 
@@ -196,12 +199,16 @@ describe("rerankSelectedResumeEvidence", () => {
       fallbackSelectedEvidence: [],
     });
 
-    expect(selected.find((item) => item.requirementId === "req-3")).toMatchObject({
+    expect(
+      selected.find((item) => item.requirementId === "req-3"),
+    ).toMatchObject({
       status: "transferable_only",
       fit: "transferable",
       allowedClaims: ["stakeholder reporting"],
     });
-    expect(selected.find((item) => item.requirementId === "req-3")?.chunks[0]).toMatchObject({
+    expect(
+      selected.find((item) => item.requirementId === "req-3")?.chunks[0],
+    ).toMatchObject({
       evidenceGroupId: "exp_anchor:anchor-stakeholder",
       evidenceGroupLabel:
         "Stakeholder Resume.docx > data_analytics_operations > Experience",

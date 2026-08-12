@@ -6,7 +6,8 @@ export function inferQualificationSemanticType(
   qualification: string,
 ): ResumeQualificationSemanticType {
   const normalized = normalizeText(qualification);
-  if (!normalized || isNonScoredQualificationText(normalized)) return "admin/non_scored";
+  if (!normalized || isNonScoredQualificationText(normalized))
+    return "admin/non_scored";
   if (
     /\b(degree|diploma|university|college|bachelor|master|education credential|educational credential)\b/.test(
       normalized,
@@ -14,20 +15,41 @@ export function inferQualificationSemanticType(
   ) {
     return "education";
   }
-  if (/\b(license|licence|licensed|certification|certified|designation|registered)\b/.test(normalized)) {
+  if (
+    /\b(license|licence|licensed|certification|certified|designation|registered)\b/.test(
+      normalized,
+    )
+  ) {
     return "credential/license";
   }
-  if (/\b(french|english|bilingual|language)\b/.test(normalized)) return "language";
-  if (/\b(excel|power bi|tableau|sql|python|sas|salesforce|sharepoint|software|proficien)\b/.test(normalized)) {
+  if (/\b(french|english|bilingual|language)\b/.test(normalized))
+    return "language";
+  if (
+    /\b(excel|power bi|tableau|sql|python|sas|salesforce|sharepoint|software|proficien)\b/.test(
+      normalized,
+    )
+  ) {
     return "skill/tool";
   }
-  if (/\b(years?|experience|performed duties|related experience)\b/.test(normalized)) {
+  if (
+    /\b(years?|experience|performed duties|related experience)\b/.test(
+      normalized,
+    )
+  ) {
     return "experience";
   }
-  if (/\b(knowledge|familiarity|understanding|principles|practices|processes|naics|classification)\b/.test(normalized)) {
+  if (
+    /\b(knowledge|familiarity|understanding|principles|practices|processes|naics|classification)\b/.test(
+      normalized,
+    )
+  ) {
     return "knowledge/domain";
   }
-  if (/\b(ability|demonstrated ability|able to|conduct|develop|analyz|communicat|present|write)\b/.test(normalized)) {
+  if (
+    /\b(ability|demonstrated ability|able to|conduct|develop|analyz|communicat|present|write)\b/.test(
+      normalized,
+    )
+  ) {
     return "ability";
   }
   return "ability";
@@ -52,7 +74,8 @@ export function allowedEvidenceSectionsForQualification(
   }
   if (semanticType === "credential/license") return ["education", "skills"];
   if (semanticType === "language") return ["skills", "experience", "education"];
-  if (semanticType === "skill/tool") return ["skills", "experience", "projects"];
+  if (semanticType === "skill/tool")
+    return ["skills", "experience", "projects"];
   if (semanticType === "knowledge/domain") {
     return ["experience", "skills", "projects", "summary"];
   }
@@ -100,9 +123,13 @@ export function isNonScoredQualificationText(text: string): boolean {
     /\b(competitive salary|competitive compensation|comprehensive benefits|extended health|dental coverage|vision coverage|rrsp|retirement savings|tuition reimbursement)\b/.test(
       normalized,
     ) ||
-    /\b(apply now|apply today|click apply|submit your|send your resume|send your cv|upload your)\b/.test(normalized) ||
+    /\b(apply now|apply today|click apply|submit your|send your resume|send your cv|upload your)\b/.test(
+      normalized,
+    ) ||
     /\bthis posting (represents|is|has been|will|may)\b/.test(normalized) ||
-    /^(we are|we have|we offer|we value|we believe|at .{3,40} (we|our|is))/.test(normalized)
+    /^(we are|we have|we offer|we value|we believe|at .{3,40} (we|our|is))/.test(
+      normalized,
+    )
   );
 }
 
@@ -133,7 +160,10 @@ export function hasWeakSemanticCoverage(args: {
   const text = normalizeText(args.text);
   if (!text || semanticType === "admin/non_scored") return false;
   if (semanticType === "education") {
-    return hasEducationLevelCoverage(text) || hasEducationFieldCoverage(text, args.qualification);
+    return (
+      hasEducationLevelCoverage(text) ||
+      hasEducationFieldCoverage(text, args.qualification)
+    );
   }
   return args.keywords.some((keyword) => text.includes(keyword));
 }
@@ -149,13 +179,16 @@ function hasEducationLevelCoverage(text: string): boolean {
   );
 }
 
-function hasEducationFieldCoverage(text: string, qualification: string): boolean {
+function hasEducationFieldCoverage(
+  text: string,
+  qualification: string,
+): boolean {
   const required = normalizeText(qualification);
   if (/\b(related|relevant|appropriate|similar)\s+field\b/.test(required)) {
     return true;
   }
   const hasFieldConstraint =
-    /\bin\s+[a-z0-9, /\-]+/.test(required) ||
+    /\bin\s+[a-z0-9, /-]+/.test(required) ||
     /\b(social sciences?|communications?|business|economics?|statistics|market research|public policy|urban studies|city studies|psychology|sociology)\b/.test(
       required,
     );
@@ -175,11 +208,19 @@ function hasEducationFieldCoverage(text: string, qualification: string): boolean
     return true;
   }
   if (/\bbusiness\b/.test(required) && /\bbusiness\b/.test(text)) return true;
-  if (/\beconomics?\b/.test(required) && /\beconomics?\b/.test(text)) return true;
-  if (/\bstatistics?\b/.test(required) && /\bstatistics?\b/.test(text)) return true;
-  if (/\bmarket research\b/.test(required) && /\bmarket research\b/.test(text)) return true;
-  if (/\bpublic policy\b/.test(required) && /\bpublic policy\b/.test(text)) return true;
-  if (/\bpsychology|sociology\b/.test(required) && hasSocialScienceAdjacentEducation(text)) return true;
+  if (/\beconomics?\b/.test(required) && /\beconomics?\b/.test(text))
+    return true;
+  if (/\bstatistics?\b/.test(required) && /\bstatistics?\b/.test(text))
+    return true;
+  if (/\bmarket research\b/.test(required) && /\bmarket research\b/.test(text))
+    return true;
+  if (/\bpublic policy\b/.test(required) && /\bpublic policy\b/.test(text))
+    return true;
+  if (
+    /\bpsychology|sociology\b/.test(required) &&
+    hasSocialScienceAdjacentEducation(text)
+  )
+    return true;
   return false;
 }
 
@@ -191,7 +232,9 @@ function hasSocialScienceAdjacentEducation(text: string): boolean {
 
 function hasKeywordCoverage(text: string, keywords: string[]): boolean {
   if (!text || keywords.length === 0) return false;
-  if (keywords.some((keyword) => keyword.includes(" ") && text.includes(keyword))) {
+  if (
+    keywords.some((keyword) => keyword.includes(" ") && text.includes(keyword))
+  ) {
     return true;
   }
   const wordHits = keywords.filter(
@@ -202,7 +245,8 @@ function hasKeywordCoverage(text: string, keywords: string[]): boolean {
 
 export function normalizeEvidenceSection(section: string): string {
   const normalized = normalizeText(section);
-  if (/\beducation|degree|university|college\b/.test(normalized)) return "education";
+  if (/\beducation|degree|university|college\b/.test(normalized))
+    return "education";
   if (/\bskill|technical|tool\b/.test(normalized)) return "skills";
   if (/\bproject\b/.test(normalized)) return "projects";
   if (/\bsummary|profile|qualification\b/.test(normalized)) return "summary";

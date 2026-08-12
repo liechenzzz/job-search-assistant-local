@@ -61,7 +61,7 @@ describe("applyDomainGateToResumeData", () => {
           items: [
             {
               id: "exp-1",
-              company: "City of Mississauga",
+              company: "Example Municipality",
               position: "Analyst",
               location: "Mississauga",
               description:
@@ -93,7 +93,7 @@ describe("applyDomainGateToResumeData", () => {
     });
 
     expect(resumeData.sections.experience.items[0].company).toBe(
-      "City of Mississauga",
+      "Example Municipality",
     );
     const serialized = JSON.stringify(resumeData);
     expect(serialized).toContain("occupational classification");
@@ -137,7 +137,7 @@ describe("applyDomainGateToResumeData", () => {
           items: [
             {
               id: "exp-1",
-              company: "City of Mississauga",
+              company: "Example Municipality",
               position: "Graduate Consultant",
               location: "Mississauga",
               period: "2024 - 2025",
@@ -152,17 +152,12 @@ describe("applyDomainGateToResumeData", () => {
       roleFamily: "consulting_strategy",
       requiredKeywords: ["strategy"],
       domainKeywordsPresent: [],
-      blockedUnlessPresent: [
-        "NOC",
-        "NAICS",
-        "RTRA",
-        "municipal stakeholder",
-      ],
+      blockedUnlessPresent: ["NOC", "NAICS", "RTRA", "municipal stakeholder"],
       experienceFocus: ["strategy work"],
     });
 
     expect(resumeData.sections.experience.items[0]).toMatchObject({
-      company: "City of Mississauga",
+      company: "Example Municipality",
       position: "Graduate Consultant",
       location: "Mississauga",
       period: "2024 - 2025",

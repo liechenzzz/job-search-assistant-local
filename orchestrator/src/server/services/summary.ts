@@ -9,10 +9,6 @@ import {
   resolveDocumentPolicy,
 } from "@shared/document-policy.js";
 import {
-  buildResumeGenerationDecision,
-  type ResumeGenerationDecision,
-} from "@shared/resume-generation-decision.js";
-import {
   applyDomainGateToExperience,
   applyDomainGateToSkills,
   applyDomainGateToText,
@@ -31,6 +27,10 @@ import {
   formatResumeCoveragePlanInstructions,
   hasRepairableCoverageGap,
 } from "@shared/resume-coverage-plan.js";
+import {
+  buildResumeGenerationDecision,
+  type ResumeGenerationDecision,
+} from "@shared/resume-generation-decision.js";
 import type {
   ExperienceAnchorSummary,
   ExperienceBulletBundle,
@@ -39,22 +39,22 @@ import type {
   JdKeywordProfile,
   JdQualificationProfile,
   JdServiceValueBrief,
-  ResumeProfile,
   ResumeAlignmentReport,
-  ResumeCoveragePlan,
   ResumeContentPlan,
+  ResumeCoveragePlan,
   ResumeGenerationTrace,
   ResumePositioningPlan,
+  ResumeProfile,
   ResumeReferenceScanItem,
   ResumeServiceFitReport,
   SelectedResumeEvidence,
   TailoredExperienceItem,
 } from "@shared/types";
+import { buildApplicationWritingInstructionsForJob } from "./application-writing";
 import {
   formatExperienceAnchorsForPrompt,
   selectExperienceAnchorsForGeneration,
 } from "./experience-anchor-bank";
-import { buildApplicationWritingInstructionsForJob } from "./application-writing";
 import {
   buildExperienceCapabilityDigests,
   formatExperienceCapabilityDigestsForPrompt,
@@ -84,26 +84,26 @@ import {
   renderPromptTemplate,
 } from "./prompt-templates";
 import {
+  buildResumeContentPlan,
+  formatResumeContentPlanForPrompt,
+} from "./resume-content-plan";
+import { rerankSelectedResumeEvidence } from "./resume-evidence-rerank";
+import {
   buildResumeReferenceInstructions,
   buildSelectedResumeEvidence,
   findReferenceChunksForQualifications,
   findResumeReferenceEvidenceForQualifications,
   getExperienceAnchorSummaries,
+  type ResumeReferenceKnowledgeHit,
   selectFormatReferenceSummaries,
   summarizeEvidenceReferenceHits,
-  type ResumeReferenceKnowledgeHit,
 } from "./resume-references";
-import { rerankSelectedResumeEvidence } from "./resume-evidence-rerank";
 import {
-  buildResumeContentPlan,
-  formatResumeContentPlanForPrompt,
-} from "./resume-content-plan";
-import {
-  JD_SERVICE_VALUE_BRIEF_SCHEMA,
-  RESUME_SERVICE_FIT_SCHEMA,
   formatJdServiceValueBriefForPrompt,
   generateJdServiceValueBrief,
+  JD_SERVICE_VALUE_BRIEF_SCHEMA,
   needsServiceFitRepair,
+  RESUME_SERVICE_FIT_SCHEMA,
   sanitizeJdServiceValueBrief,
   verifyResumeServiceFit,
 } from "./resume-service-value";
@@ -337,9 +337,12 @@ function setCachedTailoringPreparation(
   key: string,
   value: TailoringPreparation,
 ): void {
-  if (tailoringPreparationCache.size >= TAILORING_PREPARATION_CACHE_MAX_ENTRIES) {
+  if (
+    tailoringPreparationCache.size >= TAILORING_PREPARATION_CACHE_MAX_ENTRIES
+  ) {
     const firstKey = tailoringPreparationCache.keys().next().value;
-    if (typeof firstKey === "string") tailoringPreparationCache.delete(firstKey);
+    if (typeof firstKey === "string")
+      tailoringPreparationCache.delete(firstKey);
   }
   tailoringPreparationCache.set(key, {
     expiresAt: Date.now() + TAILORING_PREPARATION_CACHE_TTL_MS,
@@ -461,7 +464,8 @@ const TAILORING_SCHEMA: JsonSchemaDefinition = {
       },
       experience: {
         type: "array",
-        description: "Tailored experience bullets keyed by original experience id",
+        description:
+          "Tailored experience bullets keyed by original experience id",
         items: {
           type: "object",
           properties: {
@@ -472,7 +476,8 @@ const TAILORING_SCHEMA: JsonSchemaDefinition = {
             bullets: {
               type: "array",
               items: { type: "string" },
-              description: "Rewritten bullets grounded in that original experience",
+              description:
+                "Rewritten bullets grounded in that original experience",
             },
           },
           required: ["id", "bullets"],
@@ -969,20 +974,22 @@ export async function generateTailoring(
     framingCandidates.activationCandidates.length > 0 ||
     framingCandidates.blockCheckCandidates.length > 0;
   const shouldRunFramingJudge = hasAnyCandidates && !resumePositioningPlan;
-  const framingJudgeResult: FramingJudgeResult | undefined = shouldRunFramingJudge
-    ? await judgeFramingCandidates({
-        llm,
-        model: models.flash,
-        input: {
-          selectedEvidence: preparation.selectedEvidence,
-          experienceAnchors: preparation.experienceAnchors,
-          experienceDigests: preparation.experienceDigests,
-          coveragePlan: preparation.coveragePlan,
-          jdRequirements: preparation.jdQualificationProfile.requirements ?? [],
-        },
-        candidates: framingCandidates,
-      })
-    : undefined;
+  const framingJudgeResult: FramingJudgeResult | undefined =
+    shouldRunFramingJudge
+      ? await judgeFramingCandidates({
+          llm,
+          model: models.flash,
+          input: {
+            selectedEvidence: preparation.selectedEvidence,
+            experienceAnchors: preparation.experienceAnchors,
+            experienceDigests: preparation.experienceDigests,
+            coveragePlan: preparation.coveragePlan,
+            jdRequirements:
+              preparation.jdQualificationProfile.requirements ?? [],
+          },
+          candidates: framingCandidates,
+        })
+      : undefined;
   const prompt = await buildTailoringPrompt(
     profile,
     jobDescription,
@@ -1058,12 +1065,17 @@ export async function generateTailoring(
         recheck?.serviceFitReport ??
           buildCompactServiceFitFallback(jdServiceValueBrief, patched),
       );
-      if (recheck?.verdict === "pass" || isBetterTailoredData({
-        next: rechecked,
-        current: tailoredData,
-        densityRepairRequested: hasDensityRepairGap(tailoredData.generationTrace),
-        positioningRepairRequested: hasPositioningQualityGap(tailoredData),
-      })) {
+      if (
+        recheck?.verdict === "pass" ||
+        isBetterTailoredData({
+          next: rechecked,
+          current: tailoredData,
+          densityRepairRequested: hasDensityRepairGap(
+            tailoredData.generationTrace,
+          ),
+          positioningRepairRequested: hasPositioningQualityGap(tailoredData),
+        })
+      ) {
         tailoredData = markAutoRewriteAttempted(rechecked);
       } else {
         tailoredData = markAutoRewriteAttempted(tailoredData);
@@ -1163,8 +1175,8 @@ async function prepareTailoring(args: {
     knowledgeHits: referenceKnowledgeHits,
     maxChunksPerRequirement: 3,
   });
-  const rerankLlm = args.llm ?? await createConfiguredLlmService();
-  const rerankModel = args.model ?? await resolveLlmModel("tailoring");
+  const rerankLlm = args.llm ?? (await createConfiguredLlmService());
+  const rerankModel = args.model ?? (await resolveLlmModel("tailoring"));
   const selectedEvidence = await rerankSelectedResumeEvidence({
     llm: rerankLlm,
     model: rerankModel,
@@ -1179,8 +1191,9 @@ async function prepareTailoring(args: {
     selectedEvidence,
     maxAnchors: 8,
   });
-  const evidenceReferences =
-    summarizeEvidenceReferenceHits(referenceKnowledgeHits);
+  const evidenceReferences = summarizeEvidenceReferenceHits(
+    referenceKnowledgeHits,
+  );
   const generationDecision = buildResumeGenerationDecision({
     policy: documentPolicy,
     keywordProfile: jdKeywordProfile,
@@ -1454,9 +1467,7 @@ function buildResumePositioningPrompt(args: {
   ].join("\n");
 }
 
-function formatFramingBoundariesForPrompt(
-  result: FramingJudgeResult,
-): string {
+function formatFramingBoundariesForPrompt(result: FramingJudgeResult): string {
   const lines: string[] = [
     "FRAMING BOUNDARIES (per-experience, evidence-grounded):",
     "",
@@ -1605,7 +1616,10 @@ function sanitizeResumePositioningPlan(
     targetFrame,
     avoidFrame: sanitizeStringList(value.avoidFrame, 8),
     primaryEvidenceRoles: sanitizeStringList(value.primaryEvidenceRoles, 8),
-    supportingEvidenceRoles: sanitizeStringList(value.supportingEvidenceRoles, 8),
+    supportingEvidenceRoles: sanitizeStringList(
+      value.supportingEvidenceRoles,
+      8,
+    ),
     downplayedRoles: sanitizeStringList(value.downplayedRoles, 8),
     translationMap,
     mustAppearConcepts: sanitizeStringList(value.mustAppearConcepts, 12),
@@ -1734,7 +1748,11 @@ function selectExperienceContextsForGeneration(
   const digestRank = new Map(
     digests.map((digest) => [
       comparableExperienceId(digest.experienceId),
-      digest.fitLevel === "primary" ? 0 : digest.fitLevel === "relevant" ? 1 : 2,
+      digest.fitLevel === "primary"
+        ? 0
+        : digest.fitLevel === "relevant"
+          ? 1
+          : 2,
     ]),
   );
   const planRank = new Map(
@@ -1825,8 +1843,14 @@ function verifyExperienceItemBoundary(
     args.preparation.contentPlan,
     experience.id,
   );
-  const digest = findExperienceDigest(args.preparation.experienceDigests, experience.id);
-  const strategy = findExperienceStrategy(args.resumePositioningPlan, experience.id);
+  const digest = findExperienceDigest(
+    args.preparation.experienceDigests,
+    experience.id,
+  );
+  const strategy = findExperienceStrategy(
+    args.resumePositioningPlan,
+    experience.id,
+  );
   const bundles = getExperienceBulletBundles(
     args.preparation.contentPlan,
     experience.id,
@@ -1860,18 +1884,24 @@ function verifyExperienceItemBoundary(
     const original = item.bullets[index];
     const trace = item.bulletTrace?.[index];
     // v1c-1: Extract claims on original bullet before any repair
-    const claimVerdicts =
-      args.framingJudgeResult
-        ? extractClaims(original, args.framingJudgeResult, experience.id)
-        : undefined;
+    const claimVerdicts = args.framingJudgeResult
+      ? extractClaims(original, args.framingJudgeResult, experience.id)
+      : undefined;
     // v1c-2: Targeted repair of blocked framing/audience claims
-    let repairResult: { repaired: string; repairMode: "targeted" | "fallback" | "fallback_failed" | "none"; repairs: string[] } | undefined;
+    let repairResult:
+      | {
+          repaired: string;
+          repairMode: "targeted" | "fallback" | "fallback_failed" | "none";
+          repairs: string[];
+        }
+      | undefined;
     if (claimVerdicts?.some((c) => c.verdict === "blocked")) {
       repairResult = repairBlockedClaims(original, claimVerdicts);
     }
-    let workingBullet = repairResult?.repairMode === "targeted"
-      ? repairResult.repaired
-      : original;
+    let workingBullet =
+      repairResult?.repairMode === "targeted"
+        ? repairResult.repaired
+        : original;
     // v1c-3: If targeted repair broke the bullet, try fallback
     if (
       repairResult?.repairMode === "targeted" &&
@@ -1898,7 +1928,9 @@ function verifyExperienceItemBoundary(
         experienceId: experience.id,
         experienceAnchor: anchor
           ? {
-              responsibilityAreas: anchor.responsibilityAreas.map((a) => a.text),
+              responsibilityAreas: anchor.responsibilityAreas.map(
+                (a) => a.text,
+              ),
               toolsAndMethods: anchor.toolsAndMethods.map((a) => a.text),
               stakeholders: anchor.stakeholders.map((a) => a.text),
             }
@@ -2012,11 +2044,11 @@ function verifyExperienceItemBoundary(
       bundleId: trace.bundleId ?? supportBundles[0],
       evidenceChunkIds: [...supportChunks].slice(0, 5),
       boundaryVerdict: reasons.length ? "softened" : "pass",
-        boundaryReasons: reasons,
-        claimVerdicts,
-        repairMode: repairResult?.repairMode,
-        repairs: repairResult?.repairs,
-      });
+      boundaryReasons: reasons,
+      claimVerdicts,
+      repairMode: repairResult?.repairMode,
+      repairs: repairResult?.repairs,
+    });
   }
   return {
     ...item,
@@ -2048,7 +2080,8 @@ function buildBoundaryReasons(args: {
   }
   const weakDirectGaps = args.coveragePlan.items.filter(
     (item) =>
-      (item.evidenceStatus === "none" || item.evidenceStatus === "transferable") &&
+      (item.evidenceStatus === "none" ||
+        item.evidenceStatus === "transferable") &&
       item.allowedWordingHints.some((hint) =>
         bulletText.includes(normalizeComparable(hint)),
       ),
@@ -2120,7 +2153,8 @@ function buildSummaryAndSkillsPrompt(args: {
     "Do not turn weak/no-evidence gaps into direct skills or direct experience claims.",
     "",
     "POSITIONING PLAN:",
-    plan || "No positioning plan. Use the existing conservative generator behavior.",
+    plan ||
+      "No positioning plan. Use the existing conservative generator behavior.",
     "",
     "JD SERVICE VALUE BRIEF:",
     formatJdServiceValueBriefForPrompt(args.jdServiceValueBrief),
@@ -2171,7 +2205,8 @@ function buildExperienceItemPrompt(
     allocation,
   });
   const targetBudget = allocation?.bulletBudget ?? 3;
-  const maxBudget = allocation?.maxBulletBudget ?? Math.min(6, Math.max(3, targetBudget + 1));
+  const maxBudget =
+    allocation?.maxBulletBudget ?? Math.min(6, Math.max(3, targetBudget + 1));
   return [
     "SECTIONED GENERATION PASS: ONE EXPERIENCE ITEM ONLY.",
     "Return JSON with exactly: id, bullets. Each bullet must be an object with text, claimType, supportIds, positioningIntent, and riskFlags.",
@@ -2197,7 +2232,9 @@ function buildExperienceItemPrompt(
     formatJdServiceValueBriefForPrompt(args.jdServiceValueBrief),
     "",
     "THIS EXPERIENCE STRATEGY:",
-    strategy ? JSON.stringify(strategy, null, 2) : "No specific strategy; follow digest and coverage targets.",
+    strategy
+      ? JSON.stringify(strategy, null, 2)
+      : "No specific strategy; follow digest and coverage targets.",
     "",
     "THIS EXPERIENCE SOURCE:",
     JSON.stringify(
@@ -2269,9 +2306,15 @@ function buildFallbackSummaryAndSkills(args: {
   context: TailoringContext;
 }): SummaryAndSkillsResponse {
   const skillItems =
-    (args.profile.sections?.skills as unknown as {
-      items?: Array<{ name?: string; keywords?: string[]; visible?: boolean }>;
-    })?.items ?? [];
+    (
+      args.profile.sections?.skills as unknown as {
+        items?: Array<{
+          name?: string;
+          keywords?: string[];
+          visible?: boolean;
+        }>;
+      }
+    )?.items ?? [];
   return {
     headline: sanitizeText(
       args.context.jobTitle ?? args.profile.basics?.label ?? "Candidate",
@@ -2388,7 +2431,10 @@ function buildExperienceEvidenceScope(
     args.preparation.contentPlan,
     experience.id,
   );
-  const digest = findExperienceDigest(args.preparation.experienceDigests, experience.id);
+  const digest = findExperienceDigest(
+    args.preparation.experienceDigests,
+    experience.id,
+  );
   const bundles = getExperienceBulletBundles(
     args.preparation.contentPlan,
     experience.id,
@@ -2401,11 +2447,15 @@ function buildExperienceEvidenceScope(
     bundles,
   });
   const allowedChunkIds = uniqueStrings(
-    selectedEvidence.flatMap((item) => item.chunks.map((chunk) => chunk.chunkId)),
+    selectedEvidence.flatMap((item) =>
+      item.chunks.map((chunk) => chunk.chunkId),
+    ),
   );
   const allowedChunkIdSet = new Set(allowedChunkIds);
   const allowedSections = uniqueStrings(
-    selectedEvidence.flatMap((item) => item.chunks.map((chunk) => chunk.section)),
+    selectedEvidence.flatMap((item) =>
+      item.chunks.map((chunk) => chunk.section),
+    ),
   ).sort();
   const blockedChunkCount = uniqueStrings(
     args.preparation.selectedEvidence
@@ -2428,13 +2478,28 @@ function buildTailoringEvidenceScopes(args: {
     summary: filterSelectedEvidenceForSectionScope({
       ...args,
       target: "summary",
-      sourceSections: ["summary", "profile", "objective", "experience", "projects", "skills", "general"],
+      sourceSections: [
+        "summary",
+        "profile",
+        "objective",
+        "experience",
+        "projects",
+        "skills",
+        "general",
+      ],
       compatibleTargets: ["summary", "experience", "projects", "skills"],
     }),
     skills: filterSelectedEvidenceForSectionScope({
       ...args,
       target: "skills",
-      sourceSections: ["skills", "technical skills", "core competencies", "experience", "projects", "general"],
+      sourceSections: [
+        "skills",
+        "technical skills",
+        "core competencies",
+        "experience",
+        "projects",
+        "general",
+      ],
       compatibleTargets: ["skills"],
     }),
     experience: filterSelectedEvidenceForSectionScope({
@@ -2452,14 +2517,26 @@ function buildTailoringEvidenceScopes(args: {
     education: filterSelectedEvidenceForSectionScope({
       ...args,
       target: "education",
-      sourceSections: ["education", "academic", "certifications", "credentials", "general"],
+      sourceSections: [
+        "education",
+        "academic",
+        "certifications",
+        "credentials",
+        "general",
+      ],
       compatibleTargets: ["education"],
     }),
     general: filterSelectedEvidenceForSectionScope({
       ...args,
       target: "general",
       sourceSections: ["general"],
-      compatibleTargets: ["summary", "skills", "experience", "projects", "education"],
+      compatibleTargets: [
+        "summary",
+        "skills",
+        "experience",
+        "projects",
+        "education",
+      ],
     }),
   };
 }
@@ -2471,20 +2548,25 @@ function filterSelectedEvidenceForSectionScope(args: {
   sourceSections: string[];
   compatibleTargets: string[];
 }): SelectedResumeEvidence[] {
-  const sourceSections = new Set(args.sourceSections.map(normalizeEvidenceSectionName));
+  const sourceSections = new Set(
+    args.sourceSections.map(normalizeEvidenceSectionName),
+  );
   return args.selectedEvidence
     .map((item) => {
       const targetSections = getEvidenceTargetSections(item, args.coveragePlan);
       const compatible =
         targetSections.length === 0 ||
         targetSections.some((section) =>
-          args.compatibleTargets.includes(normalizeEvidenceSectionName(section)),
+          args.compatibleTargets.includes(
+            normalizeEvidenceSectionName(section),
+          ),
         );
       const chunks = item.chunks.filter((chunk) =>
         sourceSections.has(normalizeEvidenceSectionName(chunk.section)),
       );
       if (chunks.length > 0 && compatible) return { ...item, chunks };
-      if (isUnsupportedSelectedEvidence(item) && compatible) return { ...item, chunks: [] };
+      if (isUnsupportedSelectedEvidence(item) && compatible)
+        return { ...item, chunks: [] };
       return null;
     })
     .filter((item): item is SelectedResumeEvidence => Boolean(item));
@@ -2501,8 +2583,12 @@ function getEvidenceTargetSections(
     return (
       (comparableRequirementId && comparableRequirementId === candidateId) ||
       normalizeComparable(candidate.qualification) === comparableRequirement ||
-      comparableRequirement.includes(normalizeComparable(candidate.qualification)) ||
-      normalizeComparable(candidate.qualification).includes(comparableRequirement)
+      comparableRequirement.includes(
+        normalizeComparable(candidate.qualification),
+      ) ||
+      normalizeComparable(candidate.qualification).includes(
+        comparableRequirement,
+      )
     );
   });
   return planItem?.targetSections ?? [];
@@ -2519,11 +2605,19 @@ function isUnsupportedSelectedEvidence(item: SelectedResumeEvidence): boolean {
 
 function normalizeEvidenceSectionName(section: string): string {
   const normalized = normalizeComparable(section);
-  if (/(technical skills|core competencies|skills?)/.test(normalized)) return "skills";
-  if (/(professional experience|work history|experience)/.test(normalized)) return "experience";
-  if (/(selected projects|project experience|portfolio|projects?)/.test(normalized)) return "projects";
+  if (/(technical skills|core competencies|skills?)/.test(normalized))
+    return "skills";
+  if (/(professional experience|work history|experience)/.test(normalized))
+    return "experience";
+  if (
+    /(selected projects|project experience|portfolio|projects?)/.test(
+      normalized,
+    )
+  )
+    return "projects";
   if (/(academic|education)/.test(normalized)) return "education";
-  if (/(certifications?|credentials?)/.test(normalized)) return "certifications";
+  if (/(certifications?|credentials?)/.test(normalized))
+    return "certifications";
   if (/(profile|objective|summary)/.test(normalized)) return "summary";
   if (normalized === "general") return "general";
   return normalized;
@@ -2591,13 +2685,12 @@ function selectEvidenceForExperience(args: {
   ]);
   return args.selectedEvidence
     .map((item) => {
-      const chunks = item.chunks.filter(
-        (chunk) =>
-          isExperienceEvidenceChunkAllowed({
-            chunk,
-            experience: args.experience,
-            explicitChunkIds: evidenceChunkIds,
-          }),
+      const chunks = item.chunks.filter((chunk) =>
+        isExperienceEvidenceChunkAllowed({
+          chunk,
+          experience: args.experience,
+          explicitChunkIds: evidenceChunkIds,
+        }),
       );
       if (
         chunks.length === 0 &&
@@ -2620,7 +2713,10 @@ function isExperienceEvidenceChunkAllowed(args: {
   if (isBlockedExperienceEvidenceSection(args.chunk.section)) return false;
   const section = normalizeComparable(args.chunk.section);
   const explicit = args.explicitChunkIds.has(args.chunk.chunkId);
-  const sameAnchor = chunkMatchesExperienceAnchor(args.chunk, args.experience.id);
+  const sameAnchor = chunkMatchesExperienceAnchor(
+    args.chunk,
+    args.experience.id,
+  );
   const matchesExperience = chunkMatchesExperience(
     [
       args.chunk.rawText,
@@ -2654,7 +2750,10 @@ function chunkMatchesExperienceAnchor(
   experienceId: string,
 ): boolean {
   if (!chunk.experienceAnchorId) return false;
-  return comparableExperienceId(chunk.experienceAnchorId) === comparableExperienceId(experienceId);
+  return (
+    comparableExperienceId(chunk.experienceAnchorId) ===
+    comparableExperienceId(experienceId)
+  );
 }
 
 function buildExperienceCoverageTargets(args: {
@@ -2662,7 +2761,9 @@ function buildExperienceCoverageTargets(args: {
   experience: VisibleExperienceGenerationContext;
   allocation?: ResumeContentPlan["experienceAllocations"][number];
 }): string {
-  const coveredRequirementIds = new Set(args.allocation?.coveredRequirementIds ?? []);
+  const coveredRequirementIds = new Set(
+    args.allocation?.coveredRequirementIds ?? [],
+  );
   const experienceText = normalizeComparable(
     [
       args.experience.label,
@@ -2698,10 +2799,16 @@ function chunkMatchesExperience(
 ): boolean {
   const chunkText = normalizeComparable(rawText);
   if (!chunkText) return false;
-  if (experience.company && chunkText.includes(normalizeComparable(experience.company))) {
+  if (
+    experience.company &&
+    chunkText.includes(normalizeComparable(experience.company))
+  ) {
     return true;
   }
-  if (experience.position && chunkText.includes(normalizeComparable(experience.position))) {
+  if (
+    experience.position &&
+    chunkText.includes(normalizeComparable(experience.position))
+  ) {
     return true;
   }
   const terms = normalizeComparable(
@@ -2727,8 +2834,7 @@ function buildTailoredData(args: {
     referenceEvidence,
     referenceKnowledgeHits,
     selectedEvidence,
-  } =
-    args.preparation;
+  } = args.preparation;
   const referenceItemsForCoverage = mergeReferenceItemsForCoverage(
     referenceEvidence,
     referenceKnowledgeHits,
@@ -2781,7 +2887,8 @@ function buildTailoredData(args: {
     },
   );
   const filteredSkills =
-    evidenceFilteredSkills.length >= args.preparation.contentPlan.sectionBudgets.skillGroups.min ||
+    evidenceFilteredSkills.length >=
+      args.preparation.contentPlan.sectionBudgets.skillGroups.min ||
     !hasProfileSkillGroups(args.profile)
       ? evidenceFilteredSkills
       : plannedSkills;
@@ -2854,7 +2961,8 @@ function enforceExperienceBulletBudgets(args: {
         digestById.get(item.id) ??
         digestByComparableId.get(comparableExperienceId(item.id));
       const bundles =
-        bundlesByComparableExperienceId.get(comparableExperienceId(item.id)) ?? [];
+        bundlesByComparableExperienceId.get(comparableExperienceId(item.id)) ??
+        [];
       const minBulletTarget = Math.min(
         Math.max(0, allocation?.minBulletBudget ?? 0),
         Math.max(budget, bundles.length, item.bullets.length),
@@ -2895,7 +3003,8 @@ function findExperienceAllocation(
   if (exact) return exact;
   const itemComparableId = comparableExperienceId(item.id);
   return allocations.find(
-    (planItem) => comparableExperienceId(planItem.experienceId) === itemComparableId,
+    (planItem) =>
+      comparableExperienceId(planItem.experienceId) === itemComparableId,
   );
 }
 
@@ -2918,11 +3027,8 @@ function restoreExperienceTraceAfterGate(
     return {
       ...item,
       bulletTrace: item.bullets.map((_, index) => ({
-        ...(
-          traceByBullet.get(normalizeComparable(item.bullets[index])) ??
-          previous.bulletTrace?.[index] ??
-          { claimSource: "ai_generated" }
-        ),
+        ...(traceByBullet.get(normalizeComparable(item.bullets[index])) ??
+          previous.bulletTrace?.[index] ?? { claimSource: "ai_generated" }),
       })),
     };
   });
@@ -2950,12 +3056,20 @@ function fillExperienceBulletsToBudget(args: {
       args.digest?.sourceChunkIds ??
       [],
   }));
-  const existing = new Set(bullets.map((bullet) => normalizeComparable(bullet)));
-  const bundleClaims = buildBundleFallbackBullets(args.bundles ?? []).map((entry) => ({
-    ...entry,
-    bullet: applyDomainGateToText(entry.bullet, args.jdKeywordProfile).text,
-  }));
-  for (let index = 0; bullets.length < args.budget && index < bundleClaims.length; index += 1) {
+  const existing = new Set(
+    bullets.map((bullet) => normalizeComparable(bullet)),
+  );
+  const bundleClaims = buildBundleFallbackBullets(args.bundles ?? []).map(
+    (entry) => ({
+      ...entry,
+      bullet: applyDomainGateToText(entry.bullet, args.jdKeywordProfile).text,
+    }),
+  );
+  for (
+    let index = 0;
+    bullets.length < args.budget && index < bundleClaims.length;
+    index += 1
+  ) {
     const entry = bundleClaims[index];
     const bullet = sanitizeText(entry.bullet);
     if (!bullet) continue;
@@ -2974,10 +3088,14 @@ function fillExperienceBulletsToBudget(args: {
       densityRepairGenerated: true,
     });
   }
-  const fallbackClaims = buildDigestFallbackBullets(args.digest).map((claim) =>
-    applyDomainGateToText(claim, args.jdKeywordProfile).text,
+  const fallbackClaims = buildDigestFallbackBullets(args.digest).map(
+    (claim) => applyDomainGateToText(claim, args.jdKeywordProfile).text,
   );
-  for (let index = 0; bullets.length < args.budget && index < fallbackClaims.length; index += 1) {
+  for (
+    let index = 0;
+    bullets.length < args.budget && index < fallbackClaims.length;
+    index += 1
+  ) {
     const bullet = sanitizeText(fallbackClaims[index]);
     if (!bullet) continue;
     const key = normalizeComparable(bullet);
@@ -3004,14 +3122,20 @@ function buildBundleFallbackBullets(
   bundles: ExperienceBulletBundle[],
 ): Array<{ bundle: ExperienceBulletBundle; bullet: string }> {
   return bundles
-    .filter((bundle) => bundle.fit === "direct" || bundle.fit === "transferable")
+    .filter(
+      (bundle) => bundle.fit === "direct" || bundle.fit === "transferable",
+    )
     .flatMap((bundle) => {
       const claims = uniqueStrings(bundle.requiredClaims).slice(0, 3);
       const firstClaim = claims[0] ?? bundle.theme;
       const secondClaim = claims.find(
-        (claim) => normalizeComparable(claim) !== normalizeComparable(firstClaim),
+        (claim) =>
+          normalizeComparable(claim) !== normalizeComparable(firstClaim),
       );
-      const softenedPrefix = bundle.fit === "transferable" ? "Applied related experience in" : "Delivered";
+      const softenedPrefix =
+        bundle.fit === "transferable"
+          ? "Applied related experience in"
+          : "Delivered";
       const bullet =
         secondClaim && bundle.recommendedDepth !== "concise"
           ? `${softenedPrefix} ${firstClaim.replace(/[.;:]$/, "")}, using ${secondClaim.replace(/[.;:]$/, "")} to support ${bundle.theme.replace(/[.;:]$/, "")}.`
@@ -3039,7 +3163,10 @@ function buildDigestFallbackBullets(
 
 function expandSourceBackedClaim(claim: string): string[] {
   const cleaned = sanitizeText(claim).replace(/[.;:]$/, "");
-  const parts = cleaned.split(/\s+and\s+/i).map(sanitizeText).filter(Boolean);
+  const parts = cleaned
+    .split(/\s+and\s+/i)
+    .map(sanitizeText)
+    .filter(Boolean);
   if (parts.length < 2) return [];
   const firstWords = parts[0].split(/\s+/);
   const verb = firstWords[0] ?? "";
@@ -3051,7 +3178,10 @@ function buildSparseDigestContinuityClaims(
   digest: ExperienceCapabilityDigest,
   seed: string | undefined,
 ): string[] {
-  const source = sanitizeText(seed ?? digest.capabilitySummary).replace(/[.;:]$/, "");
+  const source = sanitizeText(seed ?? digest.capabilitySummary).replace(
+    /[.;:]$/,
+    "",
+  );
   if (!source) return [];
   return [
     `Applied source-backed ${digest.label} experience across ${source}.`,
@@ -3080,7 +3210,11 @@ function trimSkillsToContentPlanBudget(
   );
   const grouped = new Map<string, string[]>();
   for (const group of skills) {
-    const name = normalizeSkillGroupName(group.name, group.keywords, masterGroupNames);
+    const name = normalizeSkillGroupName(
+      group.name,
+      group.keywords,
+      masterGroupNames,
+    );
     const keywords = group.keywords.filter((keyword) => {
       const normalized = keyword.toLowerCase();
       return (
@@ -3091,7 +3225,10 @@ function trimSkillsToContentPlanBudget(
       );
     });
     if (keywords.length === 0) continue;
-    grouped.set(name, uniqueStrings([...(grouped.get(name) ?? []), ...keywords]).slice(0, 10));
+    grouped.set(
+      name,
+      uniqueStrings([...(grouped.get(name) ?? []), ...keywords]).slice(0, 10),
+    );
   }
   return Array.from(grouped.entries())
     .map(([name, keywords]) => ({
@@ -3104,9 +3241,11 @@ function trimSkillsToContentPlanBudget(
 }
 
 function getMasterSkillGroupNames(profile?: ResumeProfile): string[] {
-  const items = (profile?.sections?.skills as unknown as {
-    items?: Array<{ name?: string }>;
-  })?.items;
+  const items = (
+    profile?.sections?.skills as unknown as {
+      items?: Array<{ name?: string }>;
+    }
+  )?.items;
   const names = items
     ?.map((item) => sanitizeText(item.name ?? ""))
     .filter(Boolean)
@@ -3132,27 +3271,46 @@ function normalizeSkillGroupName(
       .filter((term) => term.length >= 5)
       .some((term) => haystack.includes(term)),
   );
-  if (matchingMaster && !isGenericSkillGroupName(cleaned)) return matchingMaster;
-  if (/\b(report|powerpoint|presentation|dashboard|visual|qgis|arcgis|datawrapper|brief|deck|communication)\b/.test(haystack)) {
+  if (matchingMaster && !isGenericSkillGroupName(cleaned))
+    return matchingMaster;
+  if (
+    /\b(report|powerpoint|presentation|dashboard|visual|qgis|arcgis|datawrapper|brief|deck|communication)\b/.test(
+      haystack,
+    )
+  ) {
     return pickMasterSkillName(masterGroupNames, "reporting");
   }
-  if (/\b(data|excel|python|r\b|sas|spss|statistics|cleaning|quality|dataset|analysis)\b/.test(haystack)) {
+  if (
+    /\b(data|excel|python|r\b|sas|spss|statistics|cleaning|quality|dataset|analysis)\b/.test(
+      haystack,
+    )
+  ) {
     return pickMasterSkillName(masterGroupNames, "data");
   }
-  if (/\b(research|interview|survey|audience|market|jurisdiction|stakeholder|literature)\b/.test(haystack)) {
+  if (
+    /\b(research|interview|survey|audience|market|jurisdiction|stakeholder|literature)\b/.test(
+      haystack,
+    )
+  ) {
     return pickMasterSkillName(masterGroupNames, "research");
   }
   return matchingMaster ?? masterGroupNames[0] ?? cleaned;
 }
 
-function pickMasterSkillName(masterGroupNames: string[], kind: "research" | "data" | "reporting"): string {
+function pickMasterSkillName(
+  masterGroupNames: string[],
+  kind: "research" | "data" | "reporting",
+): string {
   const matcher =
     kind === "research"
       ? /\b(research|market|audience|stakeholder)\b/i
       : kind === "data"
         ? /\b(data|analysis|quality|technical)\b/i
         : /\b(report|analytics|tool|presentation|communication|visual)\b/i;
-  return masterGroupNames.find((name) => matcher.test(name)) ?? DEFAULT_SKILL_GROUP_BY_KIND[kind];
+  return (
+    masterGroupNames.find((name) => matcher.test(name)) ??
+    DEFAULT_SKILL_GROUP_BY_KIND[kind]
+  );
 }
 
 function isGenericSkillGroupName(name: string): boolean {
@@ -3164,7 +3322,10 @@ function isGenericSkillGroupName(name: string): boolean {
 function skillGroupPriority(name: string): number {
   if (/\b(research|market|audience|stakeholder)\b/i.test(name)) return 3;
   if (/\b(data|analysis|quality|technical)\b/i.test(name)) return 2;
-  if (/\b(report|analytics|tool|presentation|communication|visual)\b/i.test(name)) return 1;
+  if (
+    /\b(report|analytics|tool|presentation|communication|visual)\b/i.test(name)
+  )
+    return 1;
   return 0;
 }
 
@@ -3197,23 +3358,23 @@ function attachEvidenceTraceToExperience(args: {
       digest,
     ]),
   );
-  const anchorIdByChunkId = new Map(
-    [
-      ...selectedChunks
-        .map((chunk) =>
-          chunk.experienceAnchorId
-            ? ([chunk.chunkId, chunk.experienceAnchorId] as const)
-            : null,
-        )
-        .filter((entry): entry is readonly [string, string] => Boolean(entry)),
-      ...args.experienceAnchors.flatMap((anchor) =>
-        anchor.sourceChunkIds.map(
-          (chunkId) => [chunkId, anchor.experienceAnchorId] as const,
-        ),
+  const anchorIdByChunkId = new Map([
+    ...selectedChunks
+      .map((chunk) =>
+        chunk.experienceAnchorId
+          ? ([chunk.chunkId, chunk.experienceAnchorId] as const)
+          : null,
+      )
+      .filter((entry): entry is readonly [string, string] => Boolean(entry)),
+    ...args.experienceAnchors.flatMap((anchor) =>
+      anchor.sourceChunkIds.map(
+        (chunkId) => [chunkId, anchor.experienceAnchorId] as const,
       ),
-    ],
-  );
-  const fallbackChunkIds = selectedChunks.slice(0, 3).map((chunk) => chunk.chunkId);
+    ),
+  ]);
+  const fallbackChunkIds = selectedChunks
+    .slice(0, 3)
+    .map((chunk) => chunk.chunkId);
   const sourceByComparableId = new Map(
     args.sourceExperiences.map((source) => [
       comparableExperienceId(source.id),
@@ -3234,7 +3395,9 @@ function attachEvidenceTraceToExperience(args: {
           .split(/[^a-z0-9+#.-]+/)
           .filter((term) => term.length >= 5)
           .slice(0, 24);
-        const overlap = chunkTerms.filter((term) => itemText.includes(term)).length;
+        const overlap = chunkTerms.filter((term) =>
+          itemText.includes(term),
+        ).length;
         return keywordMatch || overlap >= 2;
       })
       .map((chunk) => chunk.chunkId);
@@ -3242,7 +3405,9 @@ function attachEvidenceTraceToExperience(args: {
       new Set([
         ...(matched.length ? matched : []),
         ...(digest?.sourceChunkIds ?? []),
-        ...(!matched.length && !digest?.sourceChunkIds.length ? fallbackChunkIds : []),
+        ...(!matched.length && !digest?.sourceChunkIds.length
+          ? fallbackChunkIds
+          : []),
       ]),
     ).slice(0, 5);
     const bulletTrace = item.bullets.map((bullet, index) => {
@@ -3257,7 +3422,9 @@ function attachEvidenceTraceToExperience(args: {
             .split(/[^a-z0-9+#.-]+/)
             .filter((term) => term.length >= 5)
             .slice(0, 18);
-          const overlap = chunkTerms.filter((term) => bulletText.includes(term)).length;
+          const overlap = chunkTerms.filter((term) =>
+            bulletText.includes(term),
+          ).length;
           return keywordMatch || overlap >= 2;
         })
         .map((chunk) => chunk.chunkId);
@@ -3268,8 +3435,11 @@ function attachEvidenceTraceToExperience(args: {
           ...(digest?.sourceChunkIds ?? []),
         ]),
       ).slice(0, 5);
-      const sourceText = sourceByComparableId.get(comparableExperienceId(item.id)) ?? "";
-      const copiedFromSource = Boolean(sourceText && sourceText.includes(bulletText));
+      const sourceText =
+        sourceByComparableId.get(comparableExperienceId(item.id)) ?? "";
+      const copiedFromSource = Boolean(
+        sourceText && sourceText.includes(bulletText),
+      );
       return {
         claimSource: existing?.claimSource ?? "ai_generated",
         digestClaimId: existing?.digestClaimId,
@@ -3380,7 +3550,10 @@ function buildGenerationTrace(args: {
       experience: args.experience,
     }),
     uncoveredRequirements: args.selectedEvidence
-      .filter((item) => item.status === "no_evidence" || item.status === "weak_evidence")
+      .filter(
+        (item) =>
+          item.status === "no_evidence" || item.status === "weak_evidence",
+      )
       .map((item) => item.requirement),
   };
 }
@@ -3388,7 +3561,10 @@ function buildGenerationTrace(args: {
 function collectBulletBundlesUsed(
   experience: TailoredExperienceItem[],
 ): NonNullable<ResumeGenerationTrace["bulletBundlesUsed"]> {
-  const byId = new Map<string, NonNullable<ResumeGenerationTrace["bulletBundlesUsed"]>[number]>();
+  const byId = new Map<
+    string,
+    NonNullable<ResumeGenerationTrace["bulletBundlesUsed"]>[number]
+  >();
   for (const item of experience) {
     for (const trace of item.bulletTrace ?? []) {
       if (!trace.bundleId) continue;
@@ -3416,7 +3592,9 @@ function buildRepackagingVerifierTrace(args: {
   experience: TailoredExperienceItem[];
 }): NonNullable<ResumeGenerationTrace["repackagingVerifier"]> {
   const plan = args.resumePositioningPlan;
-  const primary = new Set((plan?.primaryEvidenceRoles ?? []).map(comparableExperienceId));
+  const primary = new Set(
+    (plan?.primaryEvidenceRoles ?? []).map(comparableExperienceId),
+  );
   const supporting = new Set(
     (plan?.supportingEvidenceRoles ?? []).map(comparableExperienceId),
   );
@@ -3456,8 +3634,9 @@ function buildRepackagingVerifierTrace(args: {
       return { experienceId: item.id, category };
     }),
     bulletVerdicts,
-    softenedBullets: bulletVerdicts.filter((item) => item.verdict === "softened")
-      .length,
+    softenedBullets: bulletVerdicts.filter(
+      (item) => item.verdict === "softened",
+    ).length,
     droppedBullets: bulletVerdicts.filter((item) => item.verdict === "dropped")
       .length,
     unsupportedClaimReasons: uniqueStrings(
@@ -3476,7 +3655,9 @@ function buildDensityWarnings(args: {
   const bullets = args.experience.flatMap((item) => item.bullets);
   const experienceWords = countWords(bullets.join(" "));
   const avgBulletWords =
-    bullets.length > 0 ? Math.round((experienceWords / bullets.length) * 10) / 10 : 0;
+    bullets.length > 0
+      ? Math.round((experienceWords / bullets.length) * 10) / 10
+      : 0;
   const warnings: string[] = [];
   if (experienceWords < target.minExperienceWords) {
     warnings.push(
@@ -3501,7 +3682,10 @@ function buildDensityWarnings(args: {
       bundle.fit === "direct" &&
       (bundle.confidence === "high" || bundle.recommendedDepth === "deep"),
   );
-  if (unusedHighValue.length > 0 && experienceWords < target.targetExperienceWords) {
+  if (
+    unusedHighValue.length > 0 &&
+    experienceWords < target.targetExperienceWords
+  ) {
     warnings.push(
       `Unused high-value evidence remains while the resume is sparse: ${unusedHighValue
         .slice(0, 5)
@@ -3526,12 +3710,10 @@ function buildAnchorEvidenceMap(
   for (const evidence of selectedEvidence) {
     for (const chunk of evidence.chunks) {
       if (!chunk.experienceAnchorId) continue;
-      const entry =
-        byAnchor.get(chunk.experienceAnchorId) ??
-        {
-          selectedChunkIds: new Set<string>(),
-          matchedRequirementIds: new Set<string>(),
-        };
+      const entry = byAnchor.get(chunk.experienceAnchorId) ?? {
+        selectedChunkIds: new Set<string>(),
+        matchedRequirementIds: new Set<string>(),
+      };
       entry.selectedChunkIds.add(chunk.chunkId);
       if (evidence.requirementId) {
         entry.matchedRequirementIds.add(evidence.requirementId);
@@ -3697,9 +3879,7 @@ function buildGeneratedResumeSignalText(data: TailoredData): string {
     data.headline,
     data.summary,
     ...data.skills.flatMap((group) => [group.name, ...group.keywords]),
-    ...data.experience
-      .slice(0, 2)
-      .flatMap((item) => item.bullets.slice(0, 2)),
+    ...data.experience.slice(0, 2).flatMap((item) => item.bullets.slice(0, 2)),
   ].join(" ");
 }
 
@@ -3778,7 +3958,8 @@ function buildTailoringCompactJudgePrompt(args: {
       partialRequired: args.tailoredData.resumeAlignmentReport.partialRequired,
       repairableRequired:
         args.tailoredData.resumeAlignmentReport.repairableRequired,
-      humanInputNeeded: args.tailoredData.resumeAlignmentReport.humanInputNeeded,
+      humanInputNeeded:
+        args.tailoredData.resumeAlignmentReport.humanInputNeeded,
     }),
     "",
     "GENERATED RESUME:",
@@ -3811,7 +3992,9 @@ function sanitizeTailoringCompactJudge(
       )
     : [];
   const failedExperienceIds = Array.isArray(value.failedExperienceIds)
-    ? value.failedExperienceIds.filter((id): id is string => typeof id === "string")
+    ? value.failedExperienceIds.filter(
+        (id): id is string => typeof id === "string",
+      )
     : [];
   const serviceFitReport =
     value.serviceFitReport ??
@@ -3830,7 +4013,9 @@ function buildCompactServiceFitFallback(
   tailoredData: TailoredData,
 ): ResumeServiceFitReport {
   const status =
-    tailoredData.resumeAlignmentReport.status === "pass" ? "pass" : "needs_review";
+    tailoredData.resumeAlignmentReport.status === "pass"
+      ? "pass"
+      : "needs_review";
   return {
     status,
     score: tailoredData.resumeAlignmentReport.score,
@@ -3841,7 +4026,8 @@ function buildCompactServiceFitFallback(
     ]
       .filter(Boolean)
       .slice(0, 8),
-    matchedServiceValues: jdServiceValueBrief?.mustSignalConcepts.slice(0, 8) ?? [],
+    matchedServiceValues:
+      jdServiceValueBrief?.mustSignalConcepts.slice(0, 8) ?? [],
     missingOrWeakServiceValues:
       tailoredData.resumeAlignmentReport.repairableRequired?.slice(0, 8) ?? [],
     oldFrameRisks: jdServiceValueBrief?.avoidDominantFrames.slice(0, 6) ?? [],
@@ -3992,9 +4178,9 @@ async function calibrateTailoredDataWithAi(args: {
 }): Promise<TailoredData> {
   if (
     args.preparation.jdQualificationProfile.required.length === 0 ||
-    !args.force &&
-    args.tailoredData.resumeAlignmentReport.status === "pass" &&
-    args.tailoredData.resumeAlignmentReport.score >= 90
+    (!args.force &&
+      args.tailoredData.resumeAlignmentReport.status === "pass" &&
+      args.tailoredData.resumeAlignmentReport.score >= 90)
   ) {
     return args.tailoredData;
   }
@@ -4160,7 +4346,10 @@ async function repairServiceFitIfNeeded(args: {
     generationTrace: args.tailoredData.generationTrace,
   });
   let current = attachServiceFitReport(args.tailoredData, currentReport);
-  if (!needsServiceFitRepair(currentReport) || isVerifierUnavailable(currentReport)) {
+  if (
+    !needsServiceFitRepair(currentReport) ||
+    isVerifierUnavailable(currentReport)
+  ) {
     return current;
   }
 
@@ -4233,7 +4422,10 @@ async function repairServiceFitIfNeeded(args: {
       current = repaired;
       currentReport = repairedReport;
     }
-    if (!needsServiceFitRepair(currentReport) || isVerifierUnavailable(currentReport)) {
+    if (
+      !needsServiceFitRepair(currentReport) ||
+      isVerifierUnavailable(currentReport)
+    ) {
       break;
     }
   }
@@ -4262,11 +4454,15 @@ function isBetterServiceFitReport(
   const nextIssues =
     next.missingOrWeakServiceValues.length +
     next.oldFrameRisks.length +
-    next.unsupportedOrNeedsConfirmation.filter((item) => item.severity === "high").length;
+    next.unsupportedOrNeedsConfirmation.filter(
+      (item) => item.severity === "high",
+    ).length;
   const currentIssues =
     current.missingOrWeakServiceValues.length +
     current.oldFrameRisks.length +
-    current.unsupportedOrNeedsConfirmation.filter((item) => item.severity === "high").length;
+    current.unsupportedOrNeedsConfirmation.filter(
+      (item) => item.severity === "high",
+    ).length;
   return next.score > current.score + 3 || nextIssues < currentIssues;
 }
 
@@ -4387,7 +4583,9 @@ async function rewriteSummaryAndSkillsForPitch(args: {
       jsonSchema: SUMMARY_SKILLS_SCHEMA,
     });
     if (!result.success) {
-      logger.warn("Pitch summary/skills rewrite failed", { error: result.error });
+      logger.warn("Pitch summary/skills rewrite failed", {
+        error: result.error,
+      });
       return null;
     }
     const sanitized = sanitizeSummaryAndSkills(result.data);
@@ -4413,7 +4611,9 @@ async function rewriteExperienceForPitch(args: {
   jdServiceValueBrief: JdServiceValueBrief | null;
   judge: ResumePitchJudgeResponse;
 }): Promise<TailoredExperienceItem[] | null> {
-  const failedIds = new Set(args.judge.failedExperienceIds.map(comparableExperienceId));
+  const failedIds = new Set(
+    args.judge.failedExperienceIds.map(comparableExperienceId),
+  );
   if (failedIds.size === 0) return null;
   const contexts = getVisibleExperienceGenerationContexts(
     args.profile,
@@ -4450,7 +4650,9 @@ async function rewriteExperienceForPitch(args: {
         }),
       );
       const index = next.findIndex(
-        (item) => comparableExperienceId(item.id) === comparableExperienceId(experience.id),
+        (item) =>
+          comparableExperienceId(item.id) ===
+          comparableExperienceId(experience.id),
       );
       if (index >= 0) next[index] = verified;
       else next.push(verified);
@@ -4465,7 +4667,9 @@ async function rewriteExperienceForPitch(args: {
   return changed ? next : null;
 }
 
-function sanitizePitchJudge(value: Partial<ResumePitchJudgeResponse>): ResumePitchJudgeResponse {
+function sanitizePitchJudge(
+  value: Partial<ResumePitchJudgeResponse>,
+): ResumePitchJudgeResponse {
   const failedSections = Array.isArray(value.failedSections)
     ? value.failedSections.filter(
         (item): item is "summary" | "skills" | "experience" =>
@@ -4496,9 +4700,12 @@ function attachPitchJudgeTrace(
       data.generationTrace.repackagingVerifier?.generatorVersion ??
       RESUME_POSITIONING_GENERATOR_VERSION,
     roleEmphasis: data.generationTrace.repackagingVerifier?.roleEmphasis ?? [],
-    bulletVerdicts: data.generationTrace.repackagingVerifier?.bulletVerdicts ?? [],
-    softenedBullets: data.generationTrace.repackagingVerifier?.softenedBullets ?? 0,
-    droppedBullets: data.generationTrace.repackagingVerifier?.droppedBullets ?? 0,
+    bulletVerdicts:
+      data.generationTrace.repackagingVerifier?.bulletVerdicts ?? [],
+    softenedBullets:
+      data.generationTrace.repackagingVerifier?.softenedBullets ?? 0,
+    droppedBullets:
+      data.generationTrace.repackagingVerifier?.droppedBullets ?? 0,
     unsupportedClaimReasons:
       data.generationTrace.repackagingVerifier?.unsupportedClaimReasons ?? [],
     targetPitch: data.resumePositioningPlan?.targetPitch,
@@ -4562,7 +4769,8 @@ function buildPitchJudgePrompt(args: {
     "REPACKAGING BRIEF:",
     JSON.stringify(
       {
-        targetPitch: plan.targetPitch || plan.candidateThesis || plan.targetFrame,
+        targetPitch:
+          plan.targetPitch || plan.candidateThesis || plan.targetFrame,
         sourcePitch: plan.sourcePitch,
         pitchDelta: plan.pitchDelta,
         allowedTranslations: plan.allowedTranslations,
@@ -4662,10 +4870,12 @@ function buildPitchExperienceRewritePrompt(
   experience: VisibleExperienceGenerationContext,
 ): string {
   const current = args.tailoredData.experience.find(
-    (item) => comparableExperienceId(item.id) === comparableExperienceId(experience.id),
+    (item) =>
+      comparableExperienceId(item.id) === comparableExperienceId(experience.id),
   );
   const experienceUse = args.resumePositioningPlan?.experienceUse?.find(
-    (item) => comparableExperienceId(item.id) === comparableExperienceId(experience.id),
+    (item) =>
+      comparableExperienceId(item.id) === comparableExperienceId(experience.id),
   );
   return [
     buildExperienceItemPrompt(args, experience),
@@ -4680,7 +4890,9 @@ function buildPitchExperienceRewritePrompt(
     JSON.stringify(args.judge, null, 2),
     "",
     "THIS EXPERIENCE USE:",
-    experienceUse ? JSON.stringify(experienceUse, null, 2) : "No explicit use item.",
+    experienceUse
+      ? JSON.stringify(experienceUse, null, 2)
+      : "No explicit use item.",
     "",
     "CURRENT BULLETS:",
     JSON.stringify(current?.bullets ?? [], null, 2),
@@ -4754,7 +4966,9 @@ function sanitizeCoverageJudgement(
         }
         const sections = Array.isArray(record.sections)
           ? record.sections
-              .filter((section): section is string => typeof section === "string")
+              .filter(
+                (section): section is string => typeof section === "string",
+              )
               .map((section) => section.trim())
               .filter(Boolean)
               .slice(0, 5)
@@ -4780,9 +4994,14 @@ function calibrateResumeAlignmentReport(args: {
   coveragePlan: ResumeCoveragePlan;
 }): ResumeAlignmentReport {
   const byQualification = new Map(
-    args.judgement.items.map((item) => [normalizeComparable(item.qualification), item]),
+    args.judgement.items.map((item) => [
+      normalizeComparable(item.qualification),
+      item,
+    ]),
   );
-  const matchedSections: Record<string, number> = { ...args.baseReport.matchedSections };
+  const matchedSections: Record<string, number> = {
+    ...args.baseReport.matchedSections,
+  };
   const missingRequired: string[] = [];
   const partialRequired: string[] = [];
   const repairableRequired: string[] = [];
@@ -4795,8 +5014,14 @@ function calibrateResumeAlignmentReport(args: {
     const item = byQualification.get(normalizeComparable(qualification));
     const semanticType = inferQualificationSemanticType(qualification);
     if (semanticType === "admin/non_scored") continue;
-    const baseMissing = includesComparable(args.baseReport.missingRequired, qualification);
-    const basePartial = includesComparable(args.baseReport.partialRequired, qualification);
+    const baseMissing = includesComparable(
+      args.baseReport.missingRequired,
+      qualification,
+    );
+    const basePartial = includesComparable(
+      args.baseReport.partialRequired,
+      qualification,
+    );
     if (!item) {
       if (baseMissing) {
         missingRequired.push(qualification);
@@ -4865,8 +5090,7 @@ function calibrateResumeAlignmentReport(args: {
     humanInputNeeded,
     repairableRequired,
     evidenceFit:
-      args.baseReport.evidenceFit ??
-      buildEvidenceFitReport(args.coveragePlan),
+      args.baseReport.evidenceFit ?? buildEvidenceFitReport(args.coveragePlan),
     alignmentSource: "ai_calibrated",
   };
 }
@@ -4920,10 +5144,14 @@ function hasPositioningQualityGap(data: TailoredData): boolean {
     .filter((item) => item.length >= 4);
   const missingLeadPositioning =
     leadConcepts.length > 0 &&
-    !leadConcepts.some((concept) => textMatchesPositioningConcept(leadText, concept));
+    !leadConcepts.some((concept) =>
+      textMatchesPositioningConcept(leadText, concept),
+    );
   const missingMustAppear =
     mustAppear.length > 0 &&
-    !mustAppear.some((concept) => textMatchesPositioningConcept(wholeText, concept));
+    !mustAppear.some((concept) =>
+      textMatchesPositioningConcept(wholeText, concept),
+    );
   const avoidLead = [...plan.avoidFrame, ...(plan.mustAvoidConcepts ?? [])]
     .map(normalizeComparable)
     .filter((item) => item.length >= 4)
@@ -4931,15 +5159,23 @@ function hasPositioningQualityGap(data: TailoredData): boolean {
   const plannedGroups = plan.skillsStrategy.groups
     .map((group) => normalizeComparable(group.name))
     .filter((name) => name.length >= 4);
-  const generatedGroups = data.skills.map((group) => normalizeComparable(group.name));
+  const generatedGroups = data.skills.map((group) =>
+    normalizeComparable(group.name),
+  );
   const matchingGroups = plannedGroups.filter((name) =>
     generatedGroups.some(
       (generated) => generated.includes(name) || name.includes(generated),
     ),
   );
   const weakSkillsGrouping =
-    plannedGroups.length >= 2 && matchingGroups.length < Math.min(2, plannedGroups.length);
-  return missingLeadPositioning || missingMustAppear || avoidLead || weakSkillsGrouping;
+    plannedGroups.length >= 2 &&
+    matchingGroups.length < Math.min(2, plannedGroups.length);
+  return (
+    missingLeadPositioning ||
+    missingMustAppear ||
+    avoidLead ||
+    weakSkillsGrouping
+  );
 }
 
 function textMatchesPositioningConcept(text: string, concept: string): boolean {
@@ -4947,7 +5183,9 @@ function textMatchesPositioningConcept(text: string, concept: string): boolean {
   if (text.includes(concept)) return true;
   const tokens = concept
     .split(/\s+/)
-    .filter((token) => token.length >= 4 && !COMMON_POSITIONING_WORDS.has(token));
+    .filter(
+      (token) => token.length >= 4 && !COMMON_POSITIONING_WORDS.has(token),
+    );
   if (tokens.length === 0) return false;
   if (tokens.length <= 2) return tokens.every((token) => text.includes(token));
   return tokens.filter((token) => text.includes(token)).length >= 2;
@@ -4980,30 +5218,43 @@ function isBetterTailoredData(args: {
   }
   if (
     hasPitchJudgePass(args.current) &&
-    args.current.generationTrace.repackagingVerifier?.pitchJudge?.repairAttempted === true &&
+    args.current.generationTrace.repackagingVerifier?.pitchJudge
+      ?.repairAttempted === true &&
     hasPositioningQualityGap(args.next)
   ) {
     return false;
   }
-  if (isBetterAlignment(args.next.resumeAlignmentReport, args.current.resumeAlignmentReport)) {
+  if (
+    isBetterAlignment(
+      args.next.resumeAlignmentReport,
+      args.current.resumeAlignmentReport,
+    )
+  ) {
     return true;
   }
   if (
     args.positioningRepairRequested &&
     !hasPositioningQualityGap(args.next) &&
-    args.next.resumeAlignmentReport.score >= args.current.resumeAlignmentReport.score - 5
+    args.next.resumeAlignmentReport.score >=
+      args.current.resumeAlignmentReport.score - 5
   ) {
     return true;
   }
   if (!args.densityRepairRequested) return false;
-  const currentWarnings = args.current.generationTrace.densityWarnings?.length ?? 0;
+  const currentWarnings =
+    args.current.generationTrace.densityWarnings?.length ?? 0;
   const nextWarnings = args.next.generationTrace.densityWarnings?.length ?? 0;
   if (nextWarnings < currentWarnings) return true;
-  return experienceWordCount(args.next.experience) > experienceWordCount(args.current.experience);
+  return (
+    experienceWordCount(args.next.experience) >
+    experienceWordCount(args.current.experience)
+  );
 }
 
 function hasPitchJudgePass(data: TailoredData): boolean {
-  return data.generationTrace.repackagingVerifier?.pitchJudge?.verdict === "pass";
+  return (
+    data.generationTrace.repackagingVerifier?.pitchJudge?.verdict === "pass"
+  );
 }
 
 function generatedContentWeight(data: TailoredData): number {
@@ -5024,16 +5275,26 @@ function isBetterAlignment(
 ): boolean {
   if (statusRank(next.status) > statusRank(current.status)) return true;
   if (next.score > current.score) return true;
-  if ((next.missingRequired?.length ?? 0) < (current.missingRequired?.length ?? 0)) {
+  if (
+    (next.missingRequired?.length ?? 0) < (current.missingRequired?.length ?? 0)
+  ) {
     return true;
   }
-  if ((next.humanInputNeeded?.length ?? 0) < (current.humanInputNeeded?.length ?? 0)) {
+  if (
+    (next.humanInputNeeded?.length ?? 0) <
+    (current.humanInputNeeded?.length ?? 0)
+  ) {
     return true;
   }
-  if ((next.repairableRequired?.length ?? 0) < (current.repairableRequired?.length ?? 0)) {
+  if (
+    (next.repairableRequired?.length ?? 0) <
+    (current.repairableRequired?.length ?? 0)
+  ) {
     return true;
   }
-  if ((next.partialRequired?.length ?? 0) < (current.partialRequired?.length ?? 0)) {
+  if (
+    (next.partialRequired?.length ?? 0) < (current.partialRequired?.length ?? 0)
+  ) {
     return true;
   }
   return false;
@@ -5057,14 +5318,19 @@ function statusRank(status: ResumeAlignmentReport["status"]): number {
   return status === "pass" ? 3 : status === "warning" ? 2 : 1;
 }
 
-function collectReferenceSources(values: string[], evidenceSources: string[]): void {
+function collectReferenceSources(
+  values: string[],
+  evidenceSources: string[],
+): void {
   for (const source of evidenceSources) {
     const normalized = source.startsWith("reference:")
       ? source.slice("reference:".length)
       : source;
     if (!normalized || normalized.startsWith("resume:")) continue;
     if (values.length >= 5) return;
-    if (!values.some((value) => value.toLowerCase() === normalized.toLowerCase())) {
+    if (
+      !values.some((value) => value.toLowerCase() === normalized.toLowerCase())
+    ) {
       values.push(normalized);
     }
   }
@@ -5076,7 +5342,9 @@ function normalizeComparable(value: string): string {
 
 function includesComparable(values: string[], target: string): boolean {
   const normalizedTarget = normalizeComparable(target);
-  return values.some((value) => normalizeComparable(value) === normalizedTarget);
+  return values.some(
+    (value) => normalizeComparable(value) === normalizedTarget,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -5102,7 +5370,9 @@ function buildJdRequirementsText(
     }
   }
   if (qualProfile.keywords.length) {
-    lines.push(`Core keywords: ${qualProfile.keywords.slice(0, 20).join(", ")}`);
+    lines.push(
+      `Core keywords: ${qualProfile.keywords.slice(0, 20).join(", ")}`,
+    );
   }
   if (keywordProfile.blockedUnlessPresent.length) {
     lines.push(
@@ -5128,8 +5398,13 @@ function buildExperienceBrief(args: {
   selectedEvidence: SelectedResumeEvidence[];
   generationDecision: ResumeGenerationDecision;
 }): string {
-  const { profile, sourceExperiences, experienceDigests, coveragePlan, selectedEvidence } =
-    args;
+  const {
+    profile,
+    sourceExperiences,
+    experienceDigests,
+    coveragePlan,
+    selectedEvidence,
+  } = args;
   const digestById = new Map(
     experienceDigests.map((digest) => [digest.experienceId, digest]),
   );
@@ -5172,7 +5447,9 @@ function buildExperienceBrief(args: {
           // if the coverage plan specifically lists this as an evidence section.
           return (
             qi.evidenceSources.some((src) => src.includes("experience")) ||
-            qualText.split(/\s+/).some((w) => w.length > 3 && experienceText.includes(w))
+            qualText
+              .split(/\s+/)
+              .some((w) => w.length > 3 && experienceText.includes(w))
           );
         })
         .slice(0, 5);
@@ -5196,9 +5473,7 @@ function buildExperienceBrief(args: {
       );
       lines.push(`ID: "${e.id || String(index)}"`);
       if (sourceText) {
-        lines.push(
-          `Master resume evidence: ${truncate(sourceText, 600)}`,
-        );
+        lines.push(`Master resume evidence: ${truncate(sourceText, 600)}`);
       } else {
         lines.push(
           "Master resume evidence: (sparse - use only selected evidence below)",
@@ -5206,7 +5481,9 @@ function buildExperienceBrief(args: {
       }
       if (digest) {
         lines.push("Experience capability digest:");
-        lines.push(`  Fit: ${digest.fitLevel} | confidence: ${digest.confidence}`);
+        lines.push(
+          `  Fit: ${digest.fitLevel} | confidence: ${digest.confidence}`,
+        );
         lines.push(`  Summary: ${digest.capabilitySummary}`);
         lines.push(
           `  Core claims: ${digest.coreClaims.slice(0, 8).join("; ") || "none"}`,
@@ -5228,9 +5505,7 @@ function buildExperienceBrief(args: {
             q.allowedWordingHints.length > 0
               ? ` | allowed wording: ${q.allowedWordingHints.slice(0, 6).join(", ")}`
               : "";
-          lines.push(
-            `  - [${q.evidenceStatus}] ${q.qualification}${hints}`,
-          );
+          lines.push(`  - [${q.evidenceStatus}] ${q.qualification}${hints}`);
         });
       }
       if (relevantChunks.length) {
@@ -5255,19 +5530,20 @@ function buildSkillsBrief(args: {
   coveragePlan: ResumeCoveragePlan;
   selectedEvidence: SelectedResumeEvidence[];
 }): string {
-  const { profile, jdKeywordProfile, coveragePlan, selectedEvidence } =
-    args;
+  const { profile, jdKeywordProfile, coveragePlan, selectedEvidence } = args;
 
   const lines: string[] = [];
 
   // Current master resume skills.
-  const skillItems = (profile.sections?.skills as unknown as { items?: Array<{ name: string; keywords: string[] }> })?.items;
+  const skillItems = (
+    profile.sections?.skills as unknown as {
+      items?: Array<{ name: string; keywords: string[] }>;
+    }
+  )?.items;
   if (skillItems?.length) {
     lines.push("Current master resume skill categories:");
     skillItems.forEach((group) => {
-      lines.push(
-        `- ${group.name}: ${(group.keywords || []).join(", ")}`,
-      );
+      lines.push(`- ${group.name}: ${(group.keywords || []).join(", ")}`);
     });
   }
   lines.push(
@@ -5379,10 +5655,7 @@ function buildEvidenceBackedAdjacentSkillCandidates(args: {
         ...(group.keywords ?? []),
       ]),
       ...args.selectedEvidence.flatMap((item) =>
-        item.chunks.flatMap((chunk) => [
-          chunk.rawText,
-          ...chunk.keywords,
-        ]),
+        item.chunks.flatMap((chunk) => [chunk.rawText, ...chunk.keywords]),
       ),
     ].join(" "),
   );
@@ -5392,9 +5665,7 @@ function buildEvidenceBackedAdjacentSkillCandidates(args: {
   );
 }
 
-function buildSummaryBrief(args: {
-  coveragePlan: ResumeCoveragePlan;
-}): string {
+function buildSummaryBrief(args: { coveragePlan: ResumeCoveragePlan }): string {
   const { coveragePlan } = args;
   const summaryTargets = coveragePlan.items.filter((item) =>
     item.targetSections.includes("summary"),
@@ -5428,7 +5699,9 @@ function buildEducationBrief(args: {
   const eduItems = Array.isArray(
     (profile.sections as Record<string, unknown> | undefined)?.education,
   )
-    ? ((profile.sections as Record<string, unknown>).education as Array<Record<string, unknown>>)
+    ? ((profile.sections as Record<string, unknown>).education as Array<
+        Record<string, unknown>
+      >)
     : [];
 
   if (eduItems.length) {
@@ -5438,18 +5711,20 @@ function buildEducationBrief(args: {
         `${i + 1}. ${item.school || ""} — ${item.degree || ""} — ${item.period || ""} — GPA: ${item.grade || "N/A"}`,
       );
       // Show description but strip duplicate GPA mentions
-      const desc = typeof item.description === "string" ? stripHtml(item.description) : "";
+      const desc =
+        typeof item.description === "string" ? stripHtml(item.description) : "";
       if (desc) {
         lines.push(`   Existing description: ${truncate(desc, 300)}`);
       }
     });
   }
 
-  const eduQuals = coveragePlan.items.filter((item) =>
-    item.semanticType === "education" ||
-    item.semanticType === "credential/license" ||
-    item.qualification.toLowerCase().includes("degree") ||
-    item.qualification.toLowerCase().includes("education"),
+  const eduQuals = coveragePlan.items.filter(
+    (item) =>
+      item.semanticType === "education" ||
+      item.semanticType === "credential/license" ||
+      item.qualification.toLowerCase().includes("degree") ||
+      item.qualification.toLowerCase().includes("education"),
   );
   if (eduQuals.length) {
     lines.push("\nJD education requirements:");
@@ -5608,7 +5883,11 @@ async function buildTailoringPrompt(
       : "",
     // Backward compat: old templates still expect these
     jobDescription: jd,
-    profileJson: JSON.stringify(buildLegacyProfileJson(profile, sourceExperiences), null, 2),
+    profileJson: JSON.stringify(
+      buildLegacyProfileJson(profile, sourceExperiences),
+      null,
+      2,
+    ),
   });
 
   // Append selected evidence as supplementary context after the main prompt.
@@ -5623,8 +5902,9 @@ async function buildTailoringPrompt(
     targetPages: generationDecision.targetPages,
     formatReferences: generationDecision.formatReferences,
   });
-  const selectedEvidenceInstructions =
-    formatSelectedEvidenceForPrompt(summarySkillsEvidence);
+  const selectedEvidenceInstructions = formatSelectedEvidenceForPrompt(
+    summarySkillsEvidence,
+  );
   const contentPlanInstructions = formatResumeContentPlanForPrompt(
     resolvedPreparation.contentPlan,
   );
@@ -5634,9 +5914,8 @@ async function buildTailoringPrompt(
   const experienceAnchorInstructions = formatExperienceAnchorsForPrompt(
     resolvedPreparation.experienceAnchors,
   );
-  const experienceDigestInstructions = formatExperienceCapabilityDigestsForPrompt(
-    experienceDigests,
-  );
+  const experienceDigestInstructions =
+    formatExperienceCapabilityDigestsForPrompt(experienceDigests);
   const positioningInstructions = formatResumePositioningPlanForPrompt(
     resumePositioningPlan ?? null,
   );
@@ -5673,14 +5952,14 @@ async function buildTailoringPrompt(
     referenceInstructions
       ? `\n\nRESUME REFERENCE LIBRARY (for layout, tone, bullet style):\n${referenceInstructions}`
       : ""
-  }\n\nEXPERIENCE ANCHOR SUMMARIES (stable cache; use these to understand each role comprehensively, but do not invent specific claims unless selected evidence supports them):\n${experienceAnchorInstructions}\n\nEXPERIENCE CAPABILITY DIGESTS (compatibility view derived from anchors or fallback evidence; use for per-role bullet themes):\n${experienceDigestInstructions}\n\n${contentPlanInstructions}\n\nEXPERIENCE BULLET BUNDLE CANDIDATES (source-backed bullet opportunities; choose enough to satisfy JD coverage and page density):\n${bulletBundleInstructions}${
-    "\n\nCONTENT PLAN ENFORCEMENT:\n- Treat bulletBudget as a density hint only; do not use it as a fixed per-experience cap or exact target.\n- Choose experience bullets from EXPERIENCE BULLET BUNDLE CANDIDATES. Each bullet should combine source-backed action, method/tool/data, output, and stakeholder or decision value when the bundle depth supports it.\n- For two-page resumes, if the experience section would be sparse, first expand selected bundle bullets with source-backed detail, then add more unused high-value bundles. Do not add filler bullets.\n- Skills are compact, not a page-filling section: output exactly 3 specific master-style skill groups unless the content plan says otherwise.\n- Skill group names should look like functional resume categories such as Market & Audience Research, Data Analysis & Quality Control, and Reporting & Analytics Tools. Avoid broad buckets like Strategy & Analysis, Tools, Technical Skills, Soft Skills, or Communication.\n- Use anchor summaries for context only. Every concrete JD-specific claim must be supported by SYSTEM SELECTED EVIDENCE BANK chunk IDs or a bullet bundle's sourceChunkIds.\n- If a requirement is blocked or has no evidence, do not write it as a concrete claim.\n- If a requirement is transferable only, write adjacent capability language and avoid claiming direct performance of the JD wording."
-  }${
+  }\n\nEXPERIENCE ANCHOR SUMMARIES (stable cache; use these to understand each role comprehensively, but do not invent specific claims unless selected evidence supports them):\n${experienceAnchorInstructions}\n\nEXPERIENCE CAPABILITY DIGESTS (compatibility view derived from anchors or fallback evidence; use for per-role bullet themes):\n${experienceDigestInstructions}\n\n${contentPlanInstructions}\n\nEXPERIENCE BULLET BUNDLE CANDIDATES (source-backed bullet opportunities; choose enough to satisfy JD coverage and page density):\n${bulletBundleInstructions}${"\n\nCONTENT PLAN ENFORCEMENT:\n- Treat bulletBudget as a density hint only; do not use it as a fixed per-experience cap or exact target.\n- Choose experience bullets from EXPERIENCE BULLET BUNDLE CANDIDATES. Each bullet should combine source-backed action, method/tool/data, output, and stakeholder or decision value when the bundle depth supports it.\n- For two-page resumes, if the experience section would be sparse, first expand selected bundle bullets with source-backed detail, then add more unused high-value bundles. Do not add filler bullets.\n- Skills are compact, not a page-filling section: output exactly 3 specific master-style skill groups unless the content plan says otherwise.\n- Skill group names should look like functional resume categories such as Market & Audience Research, Data Analysis & Quality Control, and Reporting & Analytics Tools. Avoid broad buckets like Strategy & Analysis, Tools, Technical Skills, Soft Skills, or Communication.\n- Use anchor summaries for context only. Every concrete JD-specific claim must be supported by SYSTEM SELECTED EVIDENCE BANK chunk IDs or a bullet bundle's sourceChunkIds.\n- If a requirement is blocked or has no evidence, do not write it as a concrete claim.\n- If a requirement is transferable only, write adjacent capability language and avoid claiming direct performance of the JD wording."}${
     selectedEvidenceInstructions
       ? `\n\nSYSTEM SELECTED EVIDENCE BANK (only these historical chunks may support new JD-specific claims):\n${selectedEvidenceInstructions}`
       : ""
   }${
-    repairInstructions ? `\n\nPDF DOMAIN-GATE REPAIR:\n${repairInstructions}` : ""
+    repairInstructions
+      ? `\n\nPDF DOMAIN-GATE REPAIR:\n${repairInstructions}`
+      : ""
   }${
     positioningInstructions
       ? `\n\nRESUME POSITIONING PLAN (apply before writing; keep original section, employer, and date order):\n${positioningInstructions}`
@@ -5690,7 +5969,6 @@ async function buildTailoringPrompt(
       ? `\n\nJD SERVICE VALUE BRIEF (source of truth for buyer need and value narrative):\n${serviceValueInstructions}`
       : ""
   }\n\nAPPLICATION WRITING STRATEGY:\n${applicationWritingInstructions}\n\nDOCUMENT POLICY:\n${resumePolicyInstructions}`;
-
 }
 
 function formatResumePositioningPlanForPrompt(
@@ -5760,12 +6038,12 @@ function formatResumePositioningPlanForPrompt(
   return [
     plan.candidateThesis ? `Candidate thesis: ${plan.candidateThesis}` : "",
     plan.targetPitch ? `Target pitch: ${plan.targetPitch}` : "",
-    plan.sourcePitch ? `Source pitch to move away from: ${plan.sourcePitch}` : "",
+    plan.sourcePitch
+      ? `Source pitch to move away from: ${plan.sourcePitch}`
+      : "",
     plan.pitchDelta ? `Pitch delta: ${plan.pitchDelta}` : "",
     `Target frame: ${plan.targetFrame}`,
-    plan.avoidFrame.length
-      ? `Avoid frames: ${plan.avoidFrame.join("; ")}`
-      : "",
+    plan.avoidFrame.length ? `Avoid frames: ${plan.avoidFrame.join("; ")}` : "",
     plan.primaryEvidenceRoles?.length
       ? `Primary evidence roles: ${plan.primaryEvidenceRoles.join("; ")}`
       : "",
@@ -5775,7 +6053,9 @@ function formatResumePositioningPlanForPrompt(
     plan.downplayedRoles?.length
       ? `Downplayed roles: ${plan.downplayedRoles.join("; ")}`
       : "",
-    allowedTranslations ? `Allowed repackaging translations:\n${allowedTranslations}` : "",
+    allowedTranslations
+      ? `Allowed repackaging translations:\n${allowedTranslations}`
+      : "",
     plan.overclaimRisks?.length
       ? `Overclaim risks: ${plan.overclaimRisks.join("; ")}`
       : "",
@@ -5884,12 +6164,18 @@ function buildRepairPrompt(args: {
     })
     .join("\n");
   const densityWarnings = args.draft.generationTrace.densityWarnings?.length
-    ? args.draft.generationTrace.densityWarnings.map((item) => `- ${item}`).join("\n")
+    ? args.draft.generationTrace.densityWarnings
+        .map((item) => `- ${item}`)
+        .join("\n")
     : "None.";
   const usedBundleIds = new Set(
-    (args.draft.generationTrace.bulletBundlesUsed ?? []).map((item) => item.bundleId),
+    (args.draft.generationTrace.bulletBundlesUsed ?? []).map(
+      (item) => item.bundleId,
+    ),
   );
-  const unusedHighValueBundles = (args.draft.generationTrace.bulletBundleCandidates ?? [])
+  const unusedHighValueBundles = (
+    args.draft.generationTrace.bulletBundleCandidates ?? []
+  )
     .filter(
       (bundle) =>
         !usedBundleIds.has(bundle.bundleId) &&
@@ -5935,7 +6221,9 @@ function sanitizeExperience(value: unknown): TailoredExperienceItem[] {
     for (const [index, bullet] of bulletInputs.slice(0, 6).entries()) {
       const priorTrace =
         existingTrace[index] && typeof existingTrace[index] === "object"
-          ? (existingTrace[index] as NonNullable<TailoredExperienceItem["bulletTrace"]>[number])
+          ? (existingTrace[index] as NonNullable<
+              TailoredExperienceItem["bulletTrace"]
+            >[number])
           : undefined;
       if (typeof bullet === "string") {
         const text = sanitizeText(bullet);
@@ -6025,7 +6313,9 @@ function mergeExperienceWithFallback(args: {
         ...extractFallbackBullets(source.sourceText),
         ...buildDigestFallbackBullets(digestById.get(source.id)),
       ])
-        .map((bullet) => applyDomainGateToText(bullet, args.jdKeywordProfile).text)
+        .map(
+          (bullet) => applyDomainGateToText(bullet, args.jdKeywordProfile).text,
+        )
         .map(sanitizeText)
         .filter(Boolean)
         .slice(0, 10),
@@ -6049,7 +6339,9 @@ function mergeExperienceWithFallback(args: {
       );
       const bulletTrace = bullets.map((bullet, index) => {
         const trace = item.bulletTrace?.[index];
-        const isSourceFallback = fallbackKeys.has(normalizeComparable(bullets[index]));
+        const isSourceFallback = fallbackKeys.has(
+          normalizeComparable(bullets[index]),
+        );
         if (!trace && !isSourceFallback) return undefined;
         const baseTrace = trace ?? {
           claimSource: "ai_generated",
@@ -6072,7 +6364,9 @@ function mergeExperienceWithFallback(args: {
         bullets: bullets.length > 0 ? bullets : fallbackBullets,
       };
       if (bullets.length > 0 && bulletTrace.some(Boolean)) {
-        out.bulletTrace = bulletTrace.map((trace) => trace ?? { claimSource: "ai_generated" });
+        out.bulletTrace = bulletTrace.map(
+          (trace) => trace ?? { claimSource: "ai_generated" },
+        );
       } else if (fallbackBullets.length > 0) {
         out.bulletTrace = fallbackTrace;
       }
@@ -6135,7 +6429,10 @@ function buildEvidenceText(
     JSON.stringify(profile.sections?.skills ?? ""),
     JSON.stringify(profile.sections?.projects ?? ""),
     JSON.stringify(profile.sections?.experience ?? ""),
-    JSON.stringify((profile.sections as Record<string, unknown> | undefined)?.education ?? ""),
+    JSON.stringify(
+      (profile.sections as Record<string, unknown> | undefined)?.education ??
+        "",
+    ),
     ...referenceEvidence.map((item) =>
       [
         item.fileName,
@@ -6201,7 +6498,9 @@ function mergeReferenceItemsForCoverage(
   return [...byKey.values()].slice(0, 20);
 }
 
-function buildSourceResumeSections(profile: ResumeProfile): Record<string, string> {
+function buildSourceResumeSections(
+  profile: ResumeProfile,
+): Record<string, string> {
   const sections = profile.sections as Record<string, unknown> | undefined;
   const experience = profile.sections?.experience?.items
     ?.map((item) => {
@@ -6232,7 +6531,10 @@ function buildGeneratedResumeSections(args: {
   const sourceExperience = args.profile.sections?.experience?.items
     ?.map((item) => {
       const record = item as typeof item & { description?: string };
-      return experienceById.get(item.id) ?? [item.summary, record.description].filter(Boolean).join(" ");
+      return (
+        experienceById.get(item.id) ??
+        [item.summary, record.description].filter(Boolean).join(" ")
+      );
     })
     .join(" ");
   const sections = args.profile.sections as Record<string, unknown> | undefined;
@@ -6247,7 +6549,9 @@ function buildGeneratedResumeSections(args: {
   };
 }
 
-function formatSelectedEvidenceForPrompt(items: SelectedResumeEvidence[]): string {
+function formatSelectedEvidenceForPrompt(
+  items: SelectedResumeEvidence[],
+): string {
   const limitedItems = items.slice(0, 12);
   const unsupportedBlocks = limitedItems
     .filter(
@@ -6260,7 +6564,9 @@ function formatSelectedEvidenceForPrompt(items: SelectedResumeEvidence[]): strin
       [
         `- Requirement: ${item.requirement}`,
         `  Status: ${item.status}`,
-        item.fit ? `  Fit: ${item.fit}; confidence=${item.confidence ?? "low"}` : "",
+        item.fit
+          ? `  Fit: ${item.fit}; confidence=${item.confidence ?? "low"}`
+          : "",
         item.reason ? `  Reason: ${truncate(item.reason, 260)}` : "",
         item.blockedClaims?.length
           ? `  Blocked claims: ${item.blockedClaims.slice(0, 4).join("; ")}`

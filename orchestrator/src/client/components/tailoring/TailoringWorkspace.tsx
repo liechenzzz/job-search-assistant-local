@@ -195,7 +195,10 @@ function getReferenceGenerationNotice(
     };
   }
   const indexedAt = Date.parse(scan.lastIndexedAt ?? scan.scannedAt);
-  if (Number.isFinite(indexedAt) && now - indexedAt > REFERENCE_INDEX_STALE_MS) {
+  if (
+    Number.isFinite(indexedAt) &&
+    now - indexedAt > REFERENCE_INDEX_STALE_MS
+  ) {
     return {
       tone: "warning",
       message:
@@ -468,7 +471,7 @@ export const TailoringWorkspace: React.FC<TailoringWorkspaceProps> = (
 
   useEffect(() => {
     setResumeTargetPagesOverride(props.job.resumeTargetPagesOverride ?? null);
-  }, [props.job.id, props.job.resumeTargetPagesOverride]);
+  }, [props.job.resumeTargetPagesOverride]);
 
   const tracerEnableBlocked =
     !tracerLinksEnabled && !tracerReadiness?.canEnable;
@@ -741,7 +744,9 @@ export const TailoringWorkspace: React.FC<TailoringWorkspaceProps> = (
         );
         if (editorProps) await editorProps.onUpdate();
       } catch (error) {
-        setResumeTargetPagesOverride(props.job.resumeTargetPagesOverride ?? null);
+        setResumeTargetPagesOverride(
+          props.job.resumeTargetPagesOverride ?? null,
+        );
         const message =
           error instanceof Error
             ? error.message
@@ -751,7 +756,12 @@ export const TailoringWorkspace: React.FC<TailoringWorkspaceProps> = (
         setIsSavingResumeTarget(false);
       }
     },
-    [documentPolicy, editorProps, props.job.id, props.job.resumeTargetPagesOverride],
+    [
+      documentPolicy,
+      editorProps,
+      props.job.id,
+      props.job.resumeTargetPagesOverride,
+    ],
   );
 
   const handleFinalize = useCallback(async () => {

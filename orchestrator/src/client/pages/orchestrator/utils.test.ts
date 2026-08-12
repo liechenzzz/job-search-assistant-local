@@ -48,6 +48,7 @@ describe("orchestrator utils", () => {
       ready: 2,
       discovered: 2,
       applied: 1,
+      archived: 0,
       all: 4,
     });
   });

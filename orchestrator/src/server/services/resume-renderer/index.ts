@@ -90,7 +90,9 @@ export function sanitizeLatexDocumentForDomainGate(
     education: document.education.map((entry) =>
       gateEvidenceEntry(entry, profile),
     ),
-    projects: document.projects.map((entry) => gateProjectEntry(entry, profile)),
+    projects: document.projects.map((entry) =>
+      gateProjectEntry(entry, profile),
+    ),
     skillGroups: document.skillGroups.map((group) => ({
       ...group,
       name: applyDomainGateToText(group.name, profile).text,
@@ -100,10 +102,7 @@ export function sanitizeLatexDocumentForDomainGate(
 }
 
 function collectRenderedText(document: LatexResumeDocument): string {
-  const chunks: string[] = [
-    document.headline ?? "",
-    document.summary ?? "",
-  ];
+  const chunks: string[] = [document.headline ?? "", document.summary ?? ""];
 
   for (const entry of [...document.experience, ...document.education]) {
     chunks.push(...entry.bullets);
@@ -156,7 +155,11 @@ function collectRenderedFields(
 
   document.projects.forEach((entry, entryIndex) => {
     const label = entry.title || `item ${entryIndex + 1}`;
-    fields.push({ section: "Projects", path: `Projects > ${label} > title`, text: entry.title });
+    fields.push({
+      section: "Projects",
+      path: `Projects > ${label} > title`,
+      text: entry.title,
+    });
     if (entry.subtitle) {
       fields.push({
         section: "Projects",

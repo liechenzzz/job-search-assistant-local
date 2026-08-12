@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
 import type {
   JdQualificationProfile,
   ResumeProfile,
   SelectedResumeEvidence,
 } from "@shared/types";
+import { describe, expect, it, vi } from "vitest";
 import { buildExperienceCapabilityDigests } from "./experience-capability-digest";
 
 const qualificationProfile: JdQualificationProfile = {

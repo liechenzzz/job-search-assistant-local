@@ -332,13 +332,11 @@ export type DesignResumeJson = ReactiveResumeV5Document;
 
 export type DesignResumeVariant = "one_page" | "two_page";
 
-export const DESIGN_RESUME_VARIANT_LABELS: Record<
-  DesignResumeVariant,
-  string
-> = {
-  one_page: "1-page master",
-  two_page: "2-page master",
-};
+export const DESIGN_RESUME_VARIANT_LABELS: Record<DesignResumeVariant, string> =
+  {
+    one_page: "1-page master",
+    two_page: "2-page master",
+  };
 
 export interface DesignResumeAsset {
   id: string;

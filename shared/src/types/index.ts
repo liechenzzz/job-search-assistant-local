@@ -1,4 +1,5 @@
 export * from "./api";
+export * from "./capability-bridge";
 export * from "./chat";
 export * from "./design-resume";
 export * from "./design-resume-jake";
@@ -8,5 +9,4 @@ export * from "./jobs";
 export * from "./pipeline";
 export * from "./post-application";
 export * from "./settings";
-export * from "./capability-bridge";
 export * from "./visa-sponsors";

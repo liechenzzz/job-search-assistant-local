@@ -120,9 +120,7 @@ describe("buildJobChatPromptContext", () => {
     );
     expect(context.systemPrompt).toContain("Application writing strategy:");
     expect(context.systemPrompt).toContain("Impact and quantification rules:");
-    expect(context.systemPrompt).toContain(
-      "Humanizer revision rules:",
-    );
+    expect(context.systemPrompt).toContain("Humanizer revision rules:");
     expect(context.jobSnapshot).toContain('"id": "job-ctx-1"');
     expect(context.jobSnapshot.length).toBeLessThan(6000);
     expect(context.profileSnapshot).toContain("Name: Test User");

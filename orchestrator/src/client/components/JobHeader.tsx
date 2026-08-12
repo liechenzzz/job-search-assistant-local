@@ -421,9 +421,9 @@ export const JobHeader: React.FC<JobHeaderProps> = ({
 
       {/* Status and score: single line, subdued */}
       <div className="flex items-center justify-between gap-2 py-1 border-y border-border/30">
-            <div className="flex items-center gap-4">
-              <StatusIndicator
-                dotColor={jobStatus.dotColor}
+        <div className="flex items-center gap-4">
+          <StatusIndicator
+            dotColor={jobStatus.dotColor}
             label={jobStatus.label}
             tooltip={jobStatusTooltip}
             tooltipClassName="max-w-xs"
@@ -435,16 +435,16 @@ export const JobHeader: React.FC<JobHeaderProps> = ({
             tooltip={tracerStatusTooltip}
             tooltipClassName="max-w-xs"
             className={tracerStatusTooltip ? "cursor-help" : undefined}
-              />
-              <AppliedDuplicatePill match={job.appliedDuplicateMatch} />
-              {showSponsorInfo && (
-                <SponsorPill
-                  score={job.sponsorMatchScore}
-                  names={job.sponsorMatchNames}
-                  onCheck={onCheckSponsor}
-                />
-              )}
-            </div>
+          />
+          <AppliedDuplicatePill match={job.appliedDuplicateMatch} />
+          {showSponsorInfo && (
+            <SponsorPill
+              score={job.sponsorMatchScore}
+              names={job.sponsorMatchNames}
+              onCheck={onCheckSponsor}
+            />
+          )}
+        </div>
         <ScoreMeter score={job.suitabilityScore} tooltip={scoreTooltip} />
       </div>
     </div>

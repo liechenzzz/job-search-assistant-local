@@ -1,5 +1,9 @@
 import * as api from "@client/api";
-import { JobHeader, ResumeAlignmentPill, TailoredSummary } from "@client/components";
+import {
+  JobHeader,
+  ResumeAlignmentPill,
+  TailoredSummary,
+} from "@client/components";
 import { GhostwriterDrawer } from "@client/components/ghostwriter/GhostwriterDrawer";
 import { JobDescriptionMarkdown } from "@client/components/JobDescriptionMarkdown";
 import { JobDetailsEditDrawer } from "@client/components/JobDetailsEditDrawer";
@@ -16,8 +20,8 @@ import { useSettings } from "@client/hooks/useSettings";
 import { uploadJobPdfFromFile } from "@client/lib/job-pdf-upload";
 import { getRenderableJobDescription } from "@client/lib/jobDescription";
 import {
-  downloadJobPdf,
   downloadJobHtmlResume,
+  downloadJobPdf,
   downloadJobWordDraft,
   openJobHtmlResume,
   openJobPdf,
@@ -338,7 +342,8 @@ const DocumentPolicyCard: React.FC<{
       ? {
           label: "Pass",
           icon: CheckCircle2,
-          className: "border-emerald-400/25 bg-emerald-500/5 text-emerald-100/90",
+          className:
+            "border-emerald-400/25 bg-emerald-500/5 text-emerald-100/90",
           pillClassName: "border-emerald-400/25 text-emerald-200/85",
         }
       : serviceFit.status === "weak_fit"
@@ -547,18 +552,30 @@ const DocumentPolicyCard: React.FC<{
       ) : null}
 
       {serviceFit && serviceFitTone ? (
-        <div className={cn("mt-3 rounded-md border px-3 py-2", serviceFitTone.className)}>
+        <div
+          className={cn(
+            "mt-3 rounded-md border px-3 py-2",
+            serviceFitTone.className,
+          )}
+        >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase text-current/75">
-                {ServiceFitIcon ? <ServiceFitIcon className="h-3.5 w-3.5" /> : null}
+                {ServiceFitIcon ? (
+                  <ServiceFitIcon className="h-3.5 w-3.5" />
+                ) : null}
                 Service Fit
               </div>
               <div className="mt-1 text-xs font-medium text-current">
                 {serviceFit.targetBuyerNeed}
               </div>
             </div>
-            <span className={cn("shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase", serviceFitTone.pillClassName)}>
+            <span
+              className={cn(
+                "shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase",
+                serviceFitTone.pillClassName,
+              )}
+            >
               {serviceFitTone.label} - {serviceFit.score}/100
             </span>
           </div>
@@ -588,7 +605,9 @@ const DocumentPolicyCard: React.FC<{
 
           {serviceFit.oldFrameRisks.length ? (
             <div className="mt-2 text-[10px] leading-relaxed text-current/75">
-              <span className="font-medium text-current/85">Old-frame risk: </span>
+              <span className="font-medium text-current/85">
+                Old-frame risk:{" "}
+              </span>
               {serviceFit.oldFrameRisks.slice(0, 3).join("; ")}
             </div>
           ) : null}
@@ -599,16 +618,18 @@ const DocumentPolicyCard: React.FC<{
                 Confirm before use
               </div>
               <div className="mt-1 space-y-1 text-[10px] leading-relaxed text-current/75">
-                {serviceFit.unsupportedOrNeedsConfirmation.slice(0, 4).map((item) => (
-                  <div key={`${item.severity}-${item.claim}`}>
-                    <span className="font-semibold uppercase text-current/85">
-                      {item.severity}
-                    </span>
-                    {": "}
-                    {item.claim}
-                    {item.recommendation ? ` - ${item.recommendation}` : ""}
-                  </div>
-                ))}
+                {serviceFit.unsupportedOrNeedsConfirmation
+                  .slice(0, 4)
+                  .map((item) => (
+                    <div key={`${item.severity}-${item.claim}`}>
+                      <span className="font-semibold uppercase text-current/85">
+                        {item.severity}
+                      </span>
+                      {": "}
+                      {item.claim}
+                      {item.recommendation ? ` - ${item.recommendation}` : ""}
+                    </div>
+                  ))}
               </div>
             </div>
           ) : null}
@@ -626,7 +647,9 @@ const DocumentPolicyCard: React.FC<{
                     </span>
                     {": "}
                     {item.issue}
-                    {item.suggestedDirection ? ` - ${item.suggestedDirection}` : ""}
+                    {item.suggestedDirection
+                      ? ` - ${item.suggestedDirection}`
+                      : ""}
                   </div>
                 ))}
               </div>
@@ -643,8 +666,8 @@ const DocumentPolicyCard: React.FC<{
                 Evidence gate
               </div>
               <div className="mt-1 text-[10px] text-muted-foreground/75">
-                {directEvidenceCount} direct | {transferableEvidenceCount} transferable |{" "}
-                {weakOrMissingEvidenceCount} weak/no evidence
+                {directEvidenceCount} direct | {transferableEvidenceCount}{" "}
+                transferable | {weakOrMissingEvidenceCount} weak/no evidence
               </div>
             </div>
             {evidenceTrace?.uncoveredRequirements.length ? (
@@ -736,7 +759,8 @@ const DocumentPolicyCard: React.FC<{
               </div>
             </div>
             <span className="shrink-0 rounded-full border border-violet-300/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-violet-100/80">
-              {contentPlan.targetPages} page{contentPlan.targetPages === 1 ? "" : "s"}
+              {contentPlan.targetPages} page
+              {contentPlan.targetPages === 1 ? "" : "s"}
             </span>
           </div>
           {experienceAllocations.length ? (
@@ -753,8 +777,8 @@ const DocumentPolicyCard: React.FC<{
                     </span>
                   </div>
                   <div className="mt-1 text-violet-100/65">
-                    {item.bulletBudget} bullets | {item.fitLevel ?? item.kind} | score{" "}
-                    {item.experienceFitScore}
+                    {item.bulletBudget} bullets | {item.fitLevel ?? item.kind} |
+                    score {item.experienceFitScore}
                   </div>
                   {item.requiredBulletThemes?.length ? (
                     <div className="mt-1 text-violet-100/60">
@@ -776,7 +800,8 @@ const DocumentPolicyCard: React.FC<{
                 Experience anchors
               </div>
               <div className="mt-1 text-[10px] text-emerald-50/75">
-                Stable cached role summaries used before selecting fine-grained evidence.
+                Stable cached role summaries used before selecting fine-grained
+                evidence.
               </div>
             </div>
             <span className="shrink-0 rounded-full border border-emerald-300/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-100/80">
@@ -807,7 +832,8 @@ const DocumentPolicyCard: React.FC<{
                 </div>
                 {anchor.diagnostics.warnings.length ? (
                   <div className="mt-1 text-emerald-100/60">
-                    warning: {anchor.diagnostics.warnings.slice(0, 2).join("; ")}
+                    warning:{" "}
+                    {anchor.diagnostics.warnings.slice(0, 2).join("; ")}
                   </div>
                 ) : null}
               </div>
@@ -850,7 +876,8 @@ const DocumentPolicyCard: React.FC<{
                 </div>
                 {digest.recommendedBulletThemes.length ? (
                   <div className="mt-1 text-cyan-100/60">
-                    themes: {digest.recommendedBulletThemes.slice(0, 3).join("; ")}
+                    themes:{" "}
+                    {digest.recommendedBulletThemes.slice(0, 3).join("; ")}
                   </div>
                 ) : null}
                 {digest.blockedClaims.length ? (
@@ -878,7 +905,8 @@ const DocumentPolicyCard: React.FC<{
         </div>
       ) : null}
 
-      {alignment?.status === "failed" && alignment.missingRequired.length > 0 ? (
+      {alignment?.status === "failed" &&
+      alignment.missingRequired.length > 0 ? (
         <div className="mt-3 rounded-md border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-100/90">
           <div className="font-medium">Needs manual resume review</div>
           <ul className="mt-1 list-disc space-y-1 pl-4">
@@ -1018,6 +1046,7 @@ export const JobDetailPanel: React.FC<JobDetailPanelProps> = ({
     return () => onPauseRefreshChange?.(false);
   }, [onPauseRefreshChange]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Diagnostics must refresh when generated job artifacts or the explicit refresh token change, although the request itself only needs the job id.
   useEffect(() => {
     let cancelled = false;
     if (!selectedJob) {
@@ -1088,7 +1117,9 @@ export const JobDetailPanel: React.FC<JobDetailPanelProps> = ({
         await api.updateJob(selectedJob.id, {
           resumeTargetPagesOverride: targetPages,
         });
-        toast.success(`Resume target set to ${targetPages} page${targetPages === 1 ? "" : "s"}`);
+        toast.success(
+          `Resume target set to ${targetPages} page${targetPages === 1 ? "" : "s"}`,
+        );
         await onJobUpdated();
         setDocumentDiagnosticsRefreshToken((value) => value + 1);
       } catch (error) {
@@ -1124,7 +1155,9 @@ export const JobDetailPanel: React.FC<JobDetailPanelProps> = ({
     try {
       setIsProcessing(true);
       if (selectedJob.status === "ready") {
-        toast.message("Repairing resume from JD + reference evidence if needed...");
+        toast.message(
+          "Repairing resume from JD + reference evidence if needed...",
+        );
         await api.generateJobPdf(selectedJob.id);
         toast.success("Resume materials regenerated");
         trackProductEvent("jobs_job_action_completed", {
@@ -1339,7 +1372,8 @@ export const JobDetailPanel: React.FC<JobDetailPanelProps> = ({
   const canGenerate = ["discovered", "ready"].includes(selectedJob.status);
   const canSkip = ["discovered", "ready"].includes(selectedJob.status);
   const tone = statusTone[selectedJob.status];
-  const resumePagePolicy = documentDiagnostics?.policy ?? fallbackDocumentPolicy;
+  const resumePagePolicy =
+    documentDiagnostics?.policy ?? fallbackDocumentPolicy;
   const canSelectResumeTargetPages =
     Boolean(resumePagePolicy?.allowsManualResumeTargetPages) && !isProcessing;
 
@@ -1792,7 +1826,8 @@ export const JobDetailPanel: React.FC<JobDetailPanelProps> = ({
             </div>
             {resumeAlignment?.status === "failed" ? (
               <div className="mt-2 rounded-md border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-100/90">
-                View Word/HTML is available, but this resume needs manual changes:
+                View Word/HTML is available, but this resume needs manual
+                changes:
                 {resumeAlignment.missingRequired.slice(0, 2).map((item) => (
                   <span key={item} className="ml-1 font-medium">
                     {item}

@@ -53,7 +53,9 @@ describe("buildJdQualificationProfile", () => {
 
     expect(profile.confidence).toBe("medium");
     expect(profile.required.join(" ")).toContain("enterprise strategy");
-    expect(profile.required.join(" ")).not.toContain("innovative performance apparel");
+    expect(profile.required.join(" ")).not.toContain(
+      "innovative performance apparel",
+    );
   });
 
   it("excludes hours, wage, and bargaining-unit terms from required qualifications", () => {
@@ -74,8 +76,12 @@ describe("buildJdQualificationProfile", () => {
     const keywordText = profile.keywords.join(" ");
     expect(requiredText).toContain("Degree in public policy");
     expect(requiredText).toContain("Experience preparing research");
-    expect(requiredText).not.toMatch(/\b(?:Hours|Wage|CUPE|Collective Agreement|pay range|Bargaining Unit)\b/i);
-    expect(keywordText).not.toMatch(/\b(?:CUPE|Collective Agreement|pay range|Bargaining Unit)\b/i);
+    expect(requiredText).not.toMatch(
+      /\b(?:Hours|Wage|CUPE|Collective Agreement|pay range|Bargaining Unit)\b/i,
+    );
+    expect(keywordText).not.toMatch(
+      /\b(?:CUPE|Collective Agreement|pay range|Bargaining Unit)\b/i,
+    );
     expect(profile.ignoredAdminLines).toEqual(["Hours", "Wage"]);
   });
 
@@ -132,8 +138,12 @@ describe("buildJdQualificationProfile", () => {
       "Working knowledge of primary, secondary, and tertiary research practices, processes, and principles, the North American Industry Classification System (NAICS) and its associated codes.",
       "Conduct research for problem solving and to develop solutions by analyzing facts, generating comparisons and drawing conclusions from available information.",
     ]);
-    expect(requiredText).not.toMatch(/\b(?:Hours|Wage|CUPE|Pay Level|Education|Knowledge\/Skill\/Ability|Demonstrated Ability|Corporate Culture)\b/i);
-    expect(requiredText).not.toMatch(/\b(?:Equally important|Further information|Education Equivalency|Position Equivalency Code|JobOpps)\b/i);
+    expect(requiredText).not.toMatch(
+      /\b(?:Hours|Wage|CUPE|Pay Level|Education|Knowledge\/Skill\/Ability|Demonstrated Ability|Corporate Culture)\b/i,
+    );
+    expect(requiredText).not.toMatch(
+      /\b(?:Equally important|Further information|Education Equivalency|Position Equivalency Code|JobOpps)\b/i,
+    );
     expect(profile.ignoredAdminLines).toEqual([
       "Values Statement",
       "Education Equivalency Note",
@@ -162,7 +172,9 @@ describe("buildJdQualificationProfile", () => {
       "Experience supporting survey research, questionnaire design, analysis, and reporting.",
       "Strong Excel and written communication skills.",
     ]);
-    expect(requiredText).not.toMatch(/\b(?:final base salary|non-discriminatory|human-centric|global network|cultural knowledge|industry experience)\b/i);
+    expect(requiredText).not.toMatch(
+      /\b(?:final base salary|non-discriminatory|human-centric|global network|cultural knowledge|industry experience)\b/i,
+    );
     expect(profile.ignoredAdminLines).toEqual([
       "Compensation",
       "Company Description",

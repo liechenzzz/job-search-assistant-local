@@ -20,6 +20,11 @@ import {
 } from "@server/services/llm/codex/login";
 import { LlmService } from "@server/services/llm/service";
 import { clearProfileCache } from "@server/services/profile";
+import { ingestResumeReferenceFiles } from "@server/services/resume-reference-ingestion";
+import {
+  getResumeReferenceScan,
+  saveResumeReferenceScan,
+} from "@server/services/resume-references";
 import {
   clearRxResumeResumeCache,
   extractProjectsFromResume,
@@ -30,11 +35,6 @@ import {
   validateResumeSchema,
   validateCredentials as validateRxResumeCredentials,
 } from "@server/services/rxresume";
-import {
-  getResumeReferenceScan,
-  saveResumeReferenceScan,
-} from "@server/services/resume-references";
-import { ingestResumeReferenceFiles } from "@server/services/resume-reference-ingestion";
 import { getEffectiveSettings } from "@server/services/settings";
 import { applySettingsUpdates } from "@server/services/settings-update";
 import {
@@ -422,7 +422,10 @@ settingsRouter.post(
       );
     }
     const previous = await getResumeReferenceScan();
-    const scan = await ingestResumeReferenceFiles(req.body, previous?.items ?? []);
+    const scan = await ingestResumeReferenceFiles(
+      req.body,
+      previous?.items ?? [],
+    );
     ok(res, await saveResumeReferenceScan(scan));
   }),
 );

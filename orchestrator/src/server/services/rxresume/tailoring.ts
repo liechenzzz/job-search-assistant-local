@@ -123,7 +123,10 @@ function gateField(
   record[key] = gateTextValue(record[key], profile);
 }
 
-function gateKeywordArray(record: RecordLike | null, profile: JdKeywordProfile): void {
+function gateKeywordArray(
+  record: RecordLike | null,
+  profile: JdKeywordProfile,
+): void {
   if (!record || !Array.isArray(record.keywords)) return;
   record.keywords = record.keywords.map((keyword) =>
     gateTextValue(keyword, profile),
@@ -217,9 +220,6 @@ function gateSectionItems(
     } else if (sectionKey === "skills") {
       gateSkillItem(item, profile);
     } else if (sectionKey === "profiles") {
-      // Profile links/contact handles are identity fields and are not rendered
-      // as resume evidence in the local LaTeX template.
-      continue;
     } else {
       gateCommonContentFields(item, profile);
     }
@@ -393,8 +393,8 @@ export function applyTailoredExperience(
     }
     if (bullets.length === 0) continue;
     if (profile) {
-      bullets = bullets.map((bullet) =>
-        applyDomainGateToText(bullet, profile).text,
+      bullets = bullets.map(
+        (bullet) => applyDomainGateToText(bullet, profile).text,
       );
     }
     item.description = bulletsToHtml(bullets);

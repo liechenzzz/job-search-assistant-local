@@ -87,7 +87,7 @@ describe("LlmService provider normalization", () => {
       vi.fn(async () => ({
         ok: true,
         json: async () => ({
-          choices: [{ message: { content: "{\"value\":\"ok\"}" } }],
+          choices: [{ message: { content: '{"value":"ok"}' } }],
           usage: {
             prompt_tokens: 1000,
             prompt_cache_hit_tokens: 300,

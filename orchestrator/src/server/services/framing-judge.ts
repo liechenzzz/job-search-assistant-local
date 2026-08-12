@@ -1220,10 +1220,7 @@ export function repairBlockedClaims(
         if (innerText.includes(blockedTerm)) {
           const escaped = claim.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
           const narrowed = fullClause
-            .replace(
-              new RegExp("\\s*" + escaped + "\\s*(?:and|or)?\\s*", "gi"),
-              " ",
-            )
+            .replace(new RegExp(`\\s*${escaped}\\s*(?:and|or)?\\s*`, "gi"), " ")
             .replace(/\s{2,}/g, " ")
             .replace(/\s+$/, "")
             .trim();
@@ -1252,7 +1249,7 @@ export function repairBlockedClaims(
         .replace(/\s+for\s*$/g, "")
         .trim();
       if (repaired !== before) {
-        repairs.push('framing: removed "' + claim.text + '"');
+        repairs.push(`framing: removed "${claim.text}"`);
       }
     }
   }
@@ -1422,7 +1419,7 @@ export function buildFallbackBullet(args: {
   }
 
   return {
-    bullet: bullet.length <= 180 ? bullet : bullet.slice(0, 177) + "...",
+    bullet: bullet.length <= 180 ? bullet : `${bullet.slice(0, 177)}...`,
     source: args.experienceAnchor ? "anchor_fallback" : "repaired_cleanup",
     reasons,
   };

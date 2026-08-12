@@ -504,7 +504,9 @@ describe("PDF Service Tailoring Logic", () => {
         }),
       }),
     );
-    expect(mockResumeRenderer.getLastResumeArgs().jdKeywordProfile).toMatchObject({
+    expect(
+      mockResumeRenderer.getLastResumeArgs().jdKeywordProfile,
+    ).toMatchObject({
       roleFamily: "data_analytics_operations",
       blockedUnlessPresent: expect.arrayContaining(["NOC", "NAICS"]),
     });
@@ -545,7 +547,9 @@ describe("PDF Service Tailoring Logic", () => {
         }),
       }),
     );
-    expect(mockResumeRenderer.getLastResumeArgs().jdKeywordProfile).toMatchObject({
+    expect(
+      mockResumeRenderer.getLastResumeArgs().jdKeywordProfile,
+    ).toMatchObject({
       domainKeywordsPresent: [],
       blockedUnlessPresent: expect.arrayContaining(["NOC", "NAICS"]),
     });
@@ -643,7 +647,9 @@ describe("PDF Service Tailoring Logic", () => {
       "two-page-compact",
       "two-page-ultra-compact",
     ]);
-    expect(mockResumeRenderer.getLastResumeJson().sections.projects.items).toHaveLength(2);
+    expect(
+      mockResumeRenderer.getLastResumeJson().sections.projects.items,
+    ).toHaveLength(2);
   });
 
   it("detects the resume language for local LaTeX rendering", async () => {

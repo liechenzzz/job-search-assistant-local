@@ -37,7 +37,9 @@ vi.mock("./modelSelection", () => ({
 }));
 
 vi.mock("./application-writing", () => ({
-  buildApplicationWritingInstructionsForJob: vi.fn(async () => "Role framing: Public sector / market intelligence (auto)."),
+  buildApplicationWritingInstructionsForJob: vi.fn(
+    async () => "Role framing: Public sector / market intelligence (auto).",
+  ),
 }));
 
 vi.mock("./writing-style", async (importOriginal) => {
@@ -68,7 +70,9 @@ vi.mock("./resume-references", () => ({
 }));
 
 vi.mock("./resume-evidence-rerank", () => ({
-  rerankSelectedResumeEvidence: vi.fn((args) => args.fallbackSelectedEvidence ?? []),
+  rerankSelectedResumeEvidence: vi.fn(
+    (args) => args.fallbackSelectedEvidence ?? [],
+  ),
 }));
 
 // @ts-expect-error Vitest must resolve the TS source instead of the stale sidecar summary.js.
@@ -76,106 +80,139 @@ import { generateTailoring } from "./summary.ts";
 
 function setupPipelineCalls() {
   callJsonMock.mockReset();
-
-  // jdServiceValueBrief
-  callJsonMock.mockResolvedValueOnce({ success: true, data: {
-    buyerNeed: "Market intelligence for health innovation",
-    targetStakeholders: ["Health ventures"],
-    businessDecisionsSupported: ["Market entry"],
-    expectedDeliverables: ["Market reports"],
-    mustSignalConcepts: ["market intelligence"],
-    avoidDominantFrames: ["workforce research only"],
-    candidateValueProposition: "Transferable market intelligence analyst",
-    evidenceTranslationTargets: [{ jdNeed: "market intelligence", resumeProofTheme: "sector analysis", acceptableWording: "market intelligence", overclaimRisk: "" }],
-  }});
-
-  // Positioning plan
-  callJsonMock.mockResolvedValueOnce({ success: true, data: {
-    candidateThesis: "Market intelligence analyst",
-    targetPitch: "Market intelligence and sector research analyst",
-    sourcePitch: "Workforce research analyst",
-    pitchDelta: "Reframe workforce research as market intelligence",
-    allowedTranslations: [
-      { from: "labour-market research", to: "market intelligence", claimType: "transferable", limit: "" },
-    ],
-    overclaimRisks: ["healthcare client experience", "TAM sizing"],
-    experienceUse: [
-      { id: "experience-opus-group", use: "primary", reason: "Core research", rewriteGoal: "Market intelligence" },
-    ],
-    targetFrame: "Market intelligence and sector research analyst",
-    avoidFrame: ["Workforce analyst only"],
-    primaryEvidenceRoles: ["experience-opus-group"],
-    supportingEvidenceRoles: [],
-    downplayedRoles: [],
-    translationMap: [
-      { sourceEvidence: "labour-market analysis", jdFrame: "market intelligence", claimType: "transferable", limitations: "" },
-    ],
-    mustAppearConcepts: ["market intelligence"],
-    mustAvoidConcepts: ["healthcare startups", "TAM sizing"],
-    readerExpectations: ["Market research background"],
-    summaryStrategy: ["Lead with market intelligence"],
-    experienceStrategies: [
-      { experienceId: "experience-opus-group", currentRisk: "", desiredFrame: "Market intelligence", emphasize: ["market intelligence"], deEmphasize: [], allowedTransferableClaims: ["market intelligence"], forbiddenClaims: ["healthcare startups"] },
-    ],
-    skillsStrategy: { groups: [
-      { name: "Market Intelligence", keywords: ["market intelligence", "sector analysis"], rationale: "Core" },
-    ]},
-    gapStrategy: [
-      { jdNeed: "health sector", evidenceStatus: "transferable", wordingPolicy: "Interest only" },
-    ],
-    polishChecks: ["No healthcare claims"],
-  }});
-
-  // Summary + skills
-  callJsonMock.mockResolvedValueOnce({ success: true, data: {
-    headline: "Market Intelligence Analyst",
-    summary: "Market intelligence and sector research analyst with public-sector workforce experience.",
-    skills: [
-      { name: "Market Intelligence & Research", keywords: ["market intelligence", "sector analysis"] },
-    ],
-  }});
-
-  // Experience bullets
-  callJsonMock.mockResolvedValueOnce({ success: true, data: {
-    id: "experience-opus-group",
-    bullets: [
-      { text: "Conducted market intelligence and sector opportunity research for public-sector clients.", claimType: "transferable", supportIds: ["chunk_1"] },
-      { text: "Analyzed labour-market and occupational data to inform sector prioritization.", claimType: "direct", supportIds: ["chunk_2"] },
-    ],
-  }});
-
-  // AI calibration
-  callJsonMock.mockResolvedValueOnce({ success: true, data: {
-    headline: "Market Intelligence Analyst",
-    summary: "Market intelligence and sector research analyst with public-sector workforce experience.",
-    skills: [
-      { name: "Market Intelligence & Research", keywords: ["market intelligence", "sector analysis"] },
-    ],
-    experience: [{ id: "experience-opus-group", bullets: [
-      "Conducted market intelligence and sector opportunity research for public-sector clients.",
-      "Analyzed labour-market and occupational data to inform sector prioritization.",
-    ]}],
-    resumeAlignmentReport: {
-      score: 95, status: "pass", missingRequired: [], partialRequired: [],
-      matchedSections: {}, referenceUsed: [], alignmentSource: "ai_calibrated",
-    },
-    resumePositioningPlan: {
-      targetFrame: "Market intelligence analyst",
-      avoidFrame: [],
-      readerExpectations: [],
-      summaryStrategy: [],
-      experienceStrategies: [],
-      skillsStrategy: { groups: [] },
-      gapStrategy: [],
-      polishChecks: [],
-    },
-    generationTrace: { selectedEvidence: [], experience: [] },
-  }});
-
-  // Potential pitch judge + repair LLM calls (just make them all succeed with pass-through)
-  for (let i = 0; i < 6; i++) {
-    callJsonMock.mockResolvedValueOnce({ success: true, data: {} });
-  }
+  callJsonMock.mockImplementation(async (request) => {
+    const schemaName = request?.jsonSchema?.name;
+    if (schemaName === "resume_tailoring_strategy") {
+      return {
+        success: true,
+        data: {
+          jdServiceValueBrief: {
+            buyerNeed: "Market intelligence for health innovation",
+            targetStakeholders: ["Health ventures"],
+            businessDecisionsSupported: ["Market entry"],
+            expectedDeliverables: ["Market reports"],
+            mustSignalConcepts: ["market intelligence"],
+            avoidDominantFrames: ["workforce research only"],
+            candidateValueProposition:
+              "Transferable market intelligence analyst",
+            evidenceTranslationTargets: [
+              {
+                jdNeed: "market intelligence",
+                resumeProofTheme: "sector analysis",
+                acceptableWording: "market intelligence",
+                overclaimRisk: "",
+              },
+            ],
+          },
+          resumePositioningPlan: {
+            candidateThesis: "Market intelligence analyst",
+            targetPitch: "Market intelligence and sector research analyst",
+            sourcePitch: "Workforce research analyst",
+            pitchDelta: "Reframe workforce research as market intelligence",
+            allowedTranslations: [
+              {
+                from: "labour-market research",
+                to: "market intelligence",
+                claimType: "transferable",
+                limit: "",
+              },
+            ],
+            overclaimRisks: ["healthcare client experience", "TAM sizing"],
+            experienceUse: [
+              {
+                id: "experience-research-consultancy",
+                use: "primary",
+                reason: "Core research",
+                rewriteGoal: "Market intelligence",
+              },
+            ],
+            targetFrame: "Market intelligence and sector research analyst",
+            avoidFrame: ["Workforce analyst only"],
+            primaryEvidenceRoles: ["experience-research-consultancy"],
+            supportingEvidenceRoles: [],
+            downplayedRoles: [],
+            translationMap: [
+              {
+                sourceEvidence: "labour-market analysis",
+                jdFrame: "market intelligence",
+                claimType: "transferable",
+                limitations: "",
+              },
+            ],
+            mustAppearConcepts: ["market intelligence"],
+            mustAvoidConcepts: ["healthcare startups", "TAM sizing"],
+            readerExpectations: ["Market research background"],
+            summaryStrategy: ["Lead with market intelligence"],
+            experienceStrategies: [
+              {
+                experienceId: "experience-research-consultancy",
+                currentRisk: "",
+                desiredFrame: "Market intelligence",
+                emphasize: ["market intelligence"],
+                deEmphasize: [],
+                allowedTransferableClaims: ["market intelligence"],
+                forbiddenClaims: ["healthcare startups"],
+              },
+            ],
+            skillsStrategy: {
+              groups: [
+                {
+                  name: "Market Intelligence",
+                  keywords: ["market intelligence", "sector analysis"],
+                  rationale: "Core",
+                },
+              ],
+            },
+            gapStrategy: [
+              {
+                jdNeed: "health sector",
+                evidenceStatus: "transferable",
+                wordingPolicy: "Interest only",
+              },
+            ],
+            polishChecks: ["No healthcare claims"],
+          },
+        },
+      };
+    }
+    if (schemaName === "resume_summary_skills") {
+      return {
+        success: true,
+        data: {
+          headline: "Market Intelligence Analyst",
+          summary:
+            "Market intelligence and sector research analyst with public-sector workforce experience.",
+          skills: [
+            {
+              name: "Market Intelligence & Research",
+              keywords: ["market intelligence", "sector analysis"],
+            },
+          ],
+        },
+      };
+    }
+    if (schemaName === "resume_experience_item") {
+      return {
+        success: true,
+        data: {
+          id: "experience-research-consultancy",
+          bullets: [
+            {
+              text: "Conducted market intelligence and sector opportunity research for public-sector clients.",
+              claimType: "transferable",
+              supportIds: ["chunk_1"],
+            },
+            {
+              text: "Analyzed labour-market and occupational data to inform sector prioritization.",
+              claimType: "direct",
+              supportIds: ["chunk_2"],
+            },
+          ],
+        },
+      };
+    }
+    return { success: true, data: {} };
+  });
 }
 
 describe("Smoke: full pipeline with bridge judge", () => {
@@ -196,7 +233,7 @@ describe("Smoke: full pipeline with bridge judge", () => {
         experience: {
           items: [
             {
-              id: "experience-opus-group",
+              id: "experience-research-consultancy",
               company: "Regional Research Consultancy",
               position: "Research Analyst",
               location: "Toronto",
@@ -212,27 +249,56 @@ describe("Smoke: full pipeline with bridge judge", () => {
     const result = await generateTailoring(jd, profile);
 
     expect(result.success).toBe(true);
-    const d = result.data!;
+    const d = result.data;
+    expect(d).toBeDefined();
+    if (!d) throw new Error("Expected successful tailoring data");
 
     console.log("\n=== SMOKE OUTPUT ===");
     console.log("Summary:", d.summary);
-    console.log("Skills:", d.skills?.map((s) => `${s.name}: [${s.keywords?.join(", ")}]`).join(" | "));
+    console.log(
+      "Skills:",
+      d.skills
+        ?.map((s) => `${s.name}: [${s.keywords?.join(", ")}]`)
+        .join(" | "),
+    );
     for (const exp of d.experience ?? []) {
       console.log(`${exp.id}:`);
       for (let i = 0; i < exp.bullets.length; i++) {
         const t = exp.bulletTrace?.[i];
         console.log(`  [${i}] ${exp.bullets[i]}`);
         if (t?.claimVerdicts?.length) {
-          console.log(`    claims: ${t.claimVerdicts.filter((c) => c.verdict !== "uncertain").map((c) => `[${c.type}] "${c.text}"=${c.verdict}`).join(", ")}`);
+          console.log(
+            `    claims: ${t.claimVerdicts
+              .filter((c) => c.verdict !== "uncertain")
+              .map((c) => `[${c.type}] "${c.text}"=${c.verdict}`)
+              .join(", ")}`,
+          );
         }
-        if (t?.repairMode && t.repairMode !== "none") console.log(`    repair: ${t.repairMode}`);
-        if (t?.boundaryVerdict && t.boundaryVerdict !== "pass") console.log(`    boundary: ${t.boundaryVerdict} — ${t.boundaryReasons?.join("; ")}`);
+        if (t?.repairMode && t.repairMode !== "none")
+          console.log(`    repair: ${t.repairMode}`);
+        if (t?.boundaryVerdict && t.boundaryVerdict !== "pass")
+          console.log(
+            `    boundary: ${t.boundaryVerdict} — ${t.boundaryReasons?.join("; ")}`,
+          );
       }
     }
     console.log("Plan targetFrame:", d.resumePositioningPlan?.targetFrame);
-    console.log("Plan allowedTranslations:", d.resumePositioningPlan?.allowedTranslations?.map((t) => `${t.from} → ${t.to}`).join("; "));
-    console.log("Pitch verdict:", d.generationTrace?.repackagingVerifier?.pitchJudge?.verdict);
-    console.log("Softened:", d.generationTrace?.repackagingVerifier?.softenedBullets, "Dropped:", d.generationTrace?.repackagingVerifier?.droppedBullets);
+    console.log(
+      "Plan allowedTranslations:",
+      d.resumePositioningPlan?.allowedTranslations
+        ?.map((t) => `${t.from} → ${t.to}`)
+        .join("; "),
+    );
+    console.log(
+      "Pitch verdict:",
+      d.generationTrace?.repackagingVerifier?.pitchJudge?.verdict,
+    );
+    console.log(
+      "Softened:",
+      d.generationTrace?.repackagingVerifier?.softenedBullets,
+      "Dropped:",
+      d.generationTrace?.repackagingVerifier?.droppedBullets,
+    );
     console.log("=== END SMOKE ===\n");
 
     // Assert core pipeline ran end-to-end
@@ -241,6 +307,6 @@ describe("Smoke: full pipeline with bridge judge", () => {
     // Positioning plan was generated with bridge judge constraint
     // (full mock chain exercises judge → plan → verifier path)
     expect(d.resumePositioningPlan).toBeTruthy();
-    expect(d.resumePositioningPlan!.targetFrame).toBeTruthy();
+    expect(d.resumePositioningPlan?.targetFrame).toBeTruthy();
   });
 });

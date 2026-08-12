@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildCoverLetterPolicyInstructions,
   buildCoverLetterHeader,
+  buildCoverLetterPolicyInstructions,
   buildResumePolicyInstructions,
   countVisibleWords,
   resolveDocumentPolicy,
@@ -34,9 +34,7 @@ describe("document policy", () => {
         "Policy research, briefing materials, stakeholder analysis, implementation advice, and jurisdictional scans.",
     });
 
-    expect(policy.roleFamily).toBe(
-      "public_sector_policy_economic_development",
-    );
+    expect(policy.roleFamily).toBe("public_sector_policy_economic_development");
     expect(policy.resumeTargetPages).toBe(2);
     expect(policy.resumePagePolicyMode).toBe("locked");
     expect(policy.resumePagePolicyReason).toBe("ontario_provincial");
@@ -60,7 +58,8 @@ describe("document policy", () => {
       title: "Business Development Analyst",
       employer: "City of Barrie",
       location: "City Hall, 70 Collier Street, Barrie, Ontario",
-      jobUrl: "https://careers.barrie.ca/business-development-analyst-CA-238837-en",
+      jobUrl:
+        "https://careers.barrie.ca/business-development-analyst-CA-238837-en",
       applicationLink:
         "https://barrie.hiringplatform.ca/238837-business-development-analyst/1081837/en",
       jobDescription:

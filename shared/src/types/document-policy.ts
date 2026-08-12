@@ -1,7 +1,7 @@
-import type { ApplicationRoleFamily } from "./settings";
 import type { DocumentPolicy } from "../document-policy";
-import type { ResumeAlignmentReport, ResumeServiceFitReport } from "./jobs";
 import type { ResumeGenerationDecision } from "../resume-generation-decision";
+import type { ResumeAlignmentReport, ResumeServiceFitReport } from "./jobs";
+import type { ApplicationRoleFamily } from "./settings";
 
 export interface JobDocumentDiagnostics {
   jobId: string;
@@ -140,7 +140,10 @@ export interface JdRequirementEvidenceMap {
 }
 
 export type ResumeRequirementTier = "core" | "major" | "minor" | "blocked";
-export type ExperienceCapabilityFitLevel = "primary" | "relevant" | "background";
+export type ExperienceCapabilityFitLevel =
+  | "primary"
+  | "relevant"
+  | "background";
 export type ResumeExperienceAllocationKind =
   | "primary"
   | "supporting"
@@ -405,7 +408,10 @@ export interface ResumeReferenceIngestionDiagnostics {
   chunkCount: number;
   extractorCounts?: Partial<
     Record<
-      "docx_xml" | "poppler_text" | "tesseract_ocr" | "lightweight_pdf_fallback",
+      | "docx_xml"
+      | "poppler_text"
+      | "tesseract_ocr"
+      | "lightweight_pdf_fallback",
       number
     >
   >;

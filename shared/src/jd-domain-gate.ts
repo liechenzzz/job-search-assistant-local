@@ -1,7 +1,4 @@
-import type {
-  JdKeywordProfile,
-  TailoredExperienceItem,
-} from "./types/jobs";
+import type { JdKeywordProfile, TailoredExperienceItem } from "./types/jobs";
 
 export type DomainGateResult = {
   text: string;
@@ -83,7 +80,9 @@ const DOMAIN_REPLACEMENT_RULES: DomainReplacementRule[] = [
 ];
 
 function blockedSet(profile: JdKeywordProfile): Set<string> {
-  return new Set(profile.blockedUnlessPresent.map((term) => term.toLowerCase()));
+  return new Set(
+    profile.blockedUnlessPresent.map((term) => term.toLowerCase()),
+  );
 }
 
 function shouldApplyRule(

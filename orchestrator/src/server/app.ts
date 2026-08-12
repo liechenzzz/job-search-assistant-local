@@ -2,7 +2,7 @@
  * Express app factory (useful for tests).
  */
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { Readable } from "node:stream";
@@ -23,11 +23,11 @@ import { verifyToken } from "@server/auth/jwt";
 import * as usersRepo from "@server/repositories/users";
 import { proxyChallengeViewerRequest } from "@server/services/challenge-viewer";
 import { DEFAULT_TENANT_ID } from "@server/tenancy/constants";
+import { SEMANTIC_QUALIFICATION_ENGINE_VERSION } from "@shared/qualification-semantics.js";
 import cors from "cors";
 import express from "express";
 import { apiRouter } from "./api/index";
 import { resolveTracerRedirect } from "./services/tracer-links";
-import { SEMANTIC_QUALIFICATION_ENGINE_VERSION } from "@shared/qualification-semantics.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UMAMI_UPSTREAM_ORIGIN = "https://umami.dakheera47.com";

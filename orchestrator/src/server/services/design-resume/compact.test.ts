@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { DesignResumeJson } from "@shared/types";
+import { describe, expect, it } from "vitest";
 import { compactDesignResumeJson } from "./compact";
 
 function makeResume(): DesignResumeJson {
@@ -143,8 +143,18 @@ function makeResume(): DesignResumeJson {
         colors: { primary: "#111111", text: "#111111", background: "#ffffff" },
       },
       typography: {
-        body: { fontFamily: "Arial", fontWeights: [], fontSize: 11, lineHeight: 1.4 },
-        heading: { fontFamily: "Arial", fontWeights: [], fontSize: 14, lineHeight: 1.4 },
+        body: {
+          fontFamily: "Arial",
+          fontWeights: [],
+          fontSize: 11,
+          lineHeight: 1.4,
+        },
+        heading: {
+          fontFamily: "Arial",
+          fontWeights: [],
+          fontSize: 14,
+          lineHeight: 1.4,
+        },
       },
       notes: "",
     },
@@ -162,7 +172,9 @@ describe("compactDesignResumeJson", () => {
     expect(source.sections).toEqual(originalSections);
     expect(compacted.sections).toEqual(originalSections);
     expect(compacted.summary).toEqual(originalSummary);
-    expect(compacted.metadata.page.marginX).toBeLessThan(source.metadata.page.marginX);
+    expect(compacted.metadata.page.marginX).toBeLessThan(
+      source.metadata.page.marginX,
+    );
     expect(compacted.metadata.typography.body.fontSize).toBeLessThan(
       source.metadata.typography.body.fontSize,
     );
@@ -174,7 +186,9 @@ describe("compactDesignResumeJson", () => {
     const compacted = compactDesignResumeJson(source, 2);
 
     expect(compacted.sections).toEqual(originalSections);
-    expect(compacted.metadata.page.marginX).toBeLessThan(source.metadata.page.marginX);
+    expect(compacted.metadata.page.marginX).toBeLessThan(
+      source.metadata.page.marginX,
+    );
     expect(compacted.metadata.typography.body.lineHeight).toBeLessThan(
       source.metadata.typography.body.lineHeight,
     );

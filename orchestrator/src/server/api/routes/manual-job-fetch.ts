@@ -91,7 +91,9 @@ export function shouldUseRenderedJobFallback(content: string): boolean {
     "what you",
     "you will",
   ];
-  const signalCount = jobSignals.filter((signal) => text.includes(signal)).length;
+  const signalCount = jobSignals.filter((signal) =>
+    text.includes(signal),
+  ).length;
   if (signalCount < 2) return true;
   const navigationSignals = ["sign in", "cookie", "privacy policy", "menu"];
   const navigationCount = navigationSignals.filter((signal) =>
@@ -137,8 +139,14 @@ async function loadPlaywrightChromium(): Promise<{
   chromium: {
     launch: (options: { headless: boolean }) => Promise<{
       newPage: (options: { userAgent: string }) => Promise<{
-        goto: (url: string, options: { waitUntil: string; timeout: number }) => Promise<unknown>;
-        waitForLoadState: (state: string, options: { timeout: number }) => Promise<unknown>;
+        goto: (
+          url: string,
+          options: { waitUntil: string; timeout: number },
+        ) => Promise<unknown>;
+        waitForLoadState: (
+          state: string,
+          options: { timeout: number },
+        ) => Promise<unknown>;
         content: () => Promise<string>;
         close: () => Promise<void>;
       }>;
@@ -147,9 +155,10 @@ async function loadPlaywrightChromium(): Promise<{
   };
 } | null> {
   try {
-    const dynamicImport = new Function("specifier", "return import(specifier)") as (
-      specifier: string,
-    ) => Promise<{ chromium?: unknown }>;
+    const dynamicImport = new Function(
+      "specifier",
+      "return import(specifier)",
+    ) as (specifier: string) => Promise<{ chromium?: unknown }>;
     const mod = await dynamicImport("playwright");
     if (!mod.chromium) return null;
     return { chromium: mod.chromium } as Awaited<

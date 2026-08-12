@@ -9,10 +9,10 @@ import type {
   JdNormalizedRequirement,
   JdQualificationProfile,
   ResumeGenerationReferenceSummary,
-  SelectedResumeEvidence,
   ResumeReferenceChunk,
   ResumeReferenceScanItem,
   ResumeReferenceScanResult,
+  SelectedResumeEvidence,
 } from "@shared/types";
 import Database from "better-sqlite3";
 import { z } from "zod";
@@ -252,7 +252,10 @@ export const resumeReferenceScanSchema = z.object({
   representatives: z.array(representativeSchema).max(20).optional(),
   ingestionDiagnostics: ingestionDiagnosticsSchema.optional(),
   writingGuide: writingGuideSchema.optional(),
-  experienceAnchors: z.array(experienceAnchorSummarySchema).max(2000).optional(),
+  experienceAnchors: z
+    .array(experienceAnchorSummarySchema)
+    .max(2000)
+    .optional(),
   anchorDiagnostics: z
     .object({
       anchorCount: z.number().int().min(0).max(2000),
@@ -353,14 +356,17 @@ export async function getExperienceAnchorSummaries(): Promise<
 function clearReferenceIndex(): ReferenceIndexResult {
   try {
     const db = openReferenceIndex();
-    db.exec("DELETE FROM reference_chunks_meta; DELETE FROM reference_chunks_fts;");
+    db.exec(
+      "DELETE FROM reference_chunks_meta; DELETE FROM reference_chunks_fts;",
+    );
     db.close();
     return { indexStatus: "not_indexed", indexedChunkCount: 0 };
   } catch (error) {
     return {
       indexStatus: "failed",
       indexedChunkCount: 0,
-      lastIndexError: error instanceof Error ? error.message : "Index clear failed",
+      lastIndexError:
+        error instanceof Error ? error.message : "Index clear failed",
     };
   }
 }
@@ -412,19 +418,25 @@ function ensureReferenceMetaColumns(db: Database.Database): void {
   ];
   for (const [name, sqlType] of expected) {
     if (!columns.has(name)) {
-      db.exec(`ALTER TABLE reference_chunks_meta ADD COLUMN ${name} ${sqlType};`);
+      db.exec(
+        `ALTER TABLE reference_chunks_meta ADD COLUMN ${name} ${sqlType};`,
+      );
     }
   }
 }
 
-function enrichEvidenceChunk(chunk: ResumeReferenceChunk): ResumeReferenceChunk {
+function enrichEvidenceChunk(
+  chunk: ResumeReferenceChunk,
+): ResumeReferenceChunk {
   const rawText = chunk.rawText ?? chunk.text;
   const normalizedText = chunk.normalizedText ?? normalizeText(rawText);
-  const clusterId = chunk.clusterId ?? buildEvidenceClusterId(chunk, normalizedText);
+  const clusterId =
+    chunk.clusterId ?? buildEvidenceClusterId(chunk, normalizedText);
   const evidenceGroupId = chunk.evidenceGroupId ?? buildEvidenceGroupId(chunk);
   const evidenceGroupLabel =
     chunk.evidenceGroupLabel ?? buildEvidenceGroupLabel(chunk);
-  const qualitySignals = chunk.qualitySignals ?? buildQualitySignals(chunk, rawText);
+  const qualitySignals =
+    chunk.qualitySignals ?? buildQualitySignals(chunk, rawText);
   return {
     ...chunk,
     rawText,
@@ -530,7 +542,9 @@ function rebuildReferenceIndex(
       )
     `);
     const rebuild = activeDb.transaction((items: ResumeReferenceChunk[]) => {
-      activeDb.exec("DELETE FROM reference_chunks_meta; DELETE FROM reference_chunks_fts;");
+      activeDb.exec(
+        "DELETE FROM reference_chunks_meta; DELETE FROM reference_chunks_fts;",
+      );
       for (const chunk of items) {
         const row = {
           ...chunk,
@@ -565,7 +579,9 @@ function rebuildReferenceIndex(
     };
   } catch (error) {
     try {
-      db?.exec("DELETE FROM reference_chunks_meta; DELETE FROM reference_chunks_fts;");
+      db?.exec(
+        "DELETE FROM reference_chunks_meta; DELETE FROM reference_chunks_fts;",
+      );
       db?.close();
     } catch {
       // Keep the original indexing error below.
@@ -574,7 +590,9 @@ function rebuildReferenceIndex(
       indexStatus: "failed",
       indexedChunkCount: 0,
       lastIndexError:
-        error instanceof Error ? error.message : "Reference index rebuild failed",
+        error instanceof Error
+          ? error.message
+          : "Reference index rebuild failed",
     };
   }
 }
@@ -611,7 +629,10 @@ function probeReferenceIndex(
   return {
     checkedAt,
     hitCount: hits.length,
-    sampleFiles: Array.from(new Set(hits.map((hit) => hit.fileName))).slice(0, 5),
+    sampleFiles: Array.from(new Set(hits.map((hit) => hit.fileName))).slice(
+      0,
+      5,
+    ),
   };
 }
 
@@ -648,7 +669,9 @@ function formatRepresentative(
   ]
     .filter(Boolean)
     .join("\n");
-  return [`${item.kind}: ${item.fileName}`, snippets].filter(Boolean).join("\n");
+  return [`${item.kind}: ${item.fileName}`, snippets]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function referenceSummary(
@@ -698,7 +721,9 @@ export async function selectFormatReferenceSummaries(args: {
 
   const fallback = scan.items
     .filter((item) => ["resume", "combined"].includes(item.kind))
-    .filter((item) => item.pageCount == null || item.pageCount === args.targetPages)
+    .filter(
+      (item) => item.pageCount == null || item.pageCount === args.targetPages,
+    )
     .filter((item) =>
       args.referenceRoleFamilies.some((family) =>
         roleMatches(family, item.inferredRole),
@@ -753,7 +778,9 @@ export async function buildResumeReferenceInstructions(args?: {
   const writingGuide = scan.writingGuide
     ? Object.entries(scan.writingGuide)
         .filter(
-          (entry): entry is [
+          (
+            entry,
+          ): entry is [
             string,
             NonNullable<ResumeReferenceScanResult["writingGuide"]>[string],
           ] => Boolean(entry[1]) && roleMatches(args?.roleFamily, entry[0]),
@@ -794,7 +821,9 @@ export async function buildResumeReferenceInstructions(args?: {
       ? `Selected format references (${args.targetPages ?? "unknown"}-page): ${args.formatReferences
           .slice(0, 3)
           .map((item) => item.relativePath || item.fileName)
-          .join("; ")}. Use these for layout, section ordering, tone, and bullet style only.`
+          .join(
+            "; ",
+          )}. Use these for layout, section ordering, tone, and bullet style only.`
       : "",
     writingGuide,
     representativeBlock,
@@ -859,78 +888,80 @@ export function buildSelectedResumeEvidence(args: {
   const hitsByRequirement = new Map(
     args.knowledgeHits.map((hit) => [normalizeText(hit.qualification), hit]),
   );
-  const maxChunks = Math.max(
-    1,
-    Math.min(args.maxChunksPerRequirement ?? 3, 6),
+  const maxChunks = Math.max(1, Math.min(args.maxChunksPerRequirement ?? 3, 6));
+  return getTopNormalizedRequirements(args.qualificationProfile).map(
+    (requirement) => {
+      const hit = hitsByRequirement.get(normalizeText(requirement.text));
+      const chunks = dedupeChunksByClusterAndFile(hit?.chunks ?? [])
+        .slice(0, maxChunks)
+        .map((chunk) => {
+          const evidenceGroupId =
+            chunk.evidenceGroupId ?? buildEvidenceGroupId(chunk);
+          return {
+            chunkId: chunk.id,
+            clusterId: chunk.clusterId,
+            evidenceGroupId,
+            evidenceGroupLabel:
+              chunk.evidenceGroupLabel ?? buildEvidenceGroupLabel(chunk),
+            experienceAnchorId: chunk.experienceAnchorId,
+            sourceFile: chunk.fileName,
+            relativePath: chunk.relativePath,
+            section: chunk.section,
+            roleFamily: chunk.roleFamily,
+            rawText: chunk.rawText ?? chunk.text,
+            keywords: chunk.keywords,
+            qualitySignals: chunk.qualitySignals,
+            claimType: chunk.claimType,
+            anchorSection: chunk.anchorSection,
+            sourceQuality: chunk.sourceQuality,
+            fit: "transferable" as const,
+            confidence: "low" as const,
+          };
+        });
+      return chunks.length
+        ? {
+            requirement: requirement.text,
+            requirementId: requirement.id,
+            category: requirement.category,
+            priority: requirement.priority,
+            status: "transferable_only" as const,
+            fit: "transferable" as const,
+            confidence: "low" as const,
+            chunks,
+            reason:
+              "Deterministic fallback selected keyword-matching evidence; claims must be softened unless reranked direct.",
+            allowedClaims: buildFallbackAllowedClaims(
+              requirement.text,
+              chunks.map((chunk) => chunk.rawText),
+            ),
+            blockedClaims: [
+              `Do not claim direct ${requirement.text} experience unless the selected chunk explicitly says it.`,
+            ],
+            candidateChunkCount: hit?.chunks.length ?? chunks.length,
+            sourceClusterIds: Array.from(
+              new Set(chunks.map((chunk) => chunk.clusterId).filter(Boolean)),
+            ) as string[],
+          }
+        : {
+            requirement: requirement.text,
+            requirementId: requirement.id,
+            category: requirement.category,
+            priority: requirement.priority,
+            status: "no_evidence" as const,
+            fit: "unsupported" as const,
+            confidence: "low" as const,
+            chunks: [],
+            missingReason:
+              "No matching resume evidence chunk found in the evidence bank.",
+            reason:
+              "No matching resume evidence chunk found in the evidence bank.",
+            allowedClaims: [],
+            blockedClaims: [`Do not claim ${requirement.text}.`],
+            candidateChunkCount: 0,
+            sourceClusterIds: [],
+          };
+    },
   );
-  return getTopNormalizedRequirements(args.qualificationProfile).map((requirement) => {
-    const hit = hitsByRequirement.get(normalizeText(requirement.text));
-    const chunks = dedupeChunksByClusterAndFile(hit?.chunks ?? [])
-      .slice(0, maxChunks)
-      .map((chunk) => {
-        const evidenceGroupId = chunk.evidenceGroupId ?? buildEvidenceGroupId(chunk);
-        return {
-          chunkId: chunk.id,
-          clusterId: chunk.clusterId,
-          evidenceGroupId,
-          evidenceGroupLabel:
-            chunk.evidenceGroupLabel ?? buildEvidenceGroupLabel(chunk),
-          experienceAnchorId: chunk.experienceAnchorId,
-          sourceFile: chunk.fileName,
-          relativePath: chunk.relativePath,
-          section: chunk.section,
-          roleFamily: chunk.roleFamily,
-          rawText: chunk.rawText ?? chunk.text,
-          keywords: chunk.keywords,
-          qualitySignals: chunk.qualitySignals,
-          claimType: chunk.claimType,
-          anchorSection: chunk.anchorSection,
-          sourceQuality: chunk.sourceQuality,
-          fit: "transferable" as const,
-          confidence: "low" as const,
-        };
-      });
-    return chunks.length
-      ? {
-          requirement: requirement.text,
-          requirementId: requirement.id,
-          category: requirement.category,
-          priority: requirement.priority,
-          status: "transferable_only" as const,
-          fit: "transferable" as const,
-          confidence: "low" as const,
-          chunks,
-          reason:
-            "Deterministic fallback selected keyword-matching evidence; claims must be softened unless reranked direct.",
-          allowedClaims: buildFallbackAllowedClaims(
-            requirement.text,
-            chunks.map((chunk) => chunk.rawText),
-          ),
-          blockedClaims: [
-            `Do not claim direct ${requirement.text} experience unless the selected chunk explicitly says it.`,
-          ],
-          candidateChunkCount: hit?.chunks.length ?? chunks.length,
-          sourceClusterIds: Array.from(
-            new Set(chunks.map((chunk) => chunk.clusterId).filter(Boolean)),
-          ) as string[],
-        }
-      : {
-          requirement: requirement.text,
-          requirementId: requirement.id,
-          category: requirement.category,
-          priority: requirement.priority,
-          status: "no_evidence" as const,
-          fit: "unsupported" as const,
-          confidence: "low" as const,
-          chunks: [],
-          missingReason: "No matching resume evidence chunk found in the evidence bank.",
-          reason: "No matching resume evidence chunk found in the evidence bank.",
-          allowedClaims: [],
-          blockedClaims: [`Do not claim ${requirement.text}.`],
-          candidateChunkCount: 0,
-          sourceClusterIds: [],
-        };
-  });
 }
 
 export async function findReferenceChunksForQualifications(args: {
@@ -942,7 +973,10 @@ export async function findReferenceChunksForQualifications(args: {
   if (!scan || scan.indexStatus !== "indexed" || (scan.chunkCount ?? 0) === 0) {
     return [];
   }
-  const maxChunks = Math.max(1, Math.min(args.maxChunksPerQualification ?? 3, 20));
+  const maxChunks = Math.max(
+    1,
+    Math.min(args.maxChunksPerQualification ?? 3, 20),
+  );
   let db: Database.Database;
   try {
     db = openReferenceIndex();
@@ -950,44 +984,46 @@ export async function findReferenceChunksForQualifications(args: {
     return [];
   }
   try {
-    return getTopNormalizedRequirements(args.qualificationProfile).map((requirement) => {
-      const qualification = requirement.text;
-      const primaryQuery = buildFtsQuery([
-        qualification,
-        ...args.qualificationProfile.keywords,
-      ]);
-      const fallbackQuery = buildFtsQuery([
-        ...(args.keywordProfile?.requiredKeywords ?? []),
-        ...(args.keywordProfile?.experienceFocus ?? []),
-        ...args.qualificationProfile.keywords,
-      ]);
-      const primaryRows = primaryQuery
-        ? queryReferenceChunks(db, primaryQuery)
-        : [];
-      const rows =
-        primaryRows.length > 0 || !fallbackQuery
-          ? primaryRows
-          : queryReferenceChunks(db, fallbackQuery);
-      const reranked = rows
-        .map((chunk) => ({
-          chunk,
-          score: scoreChunkForQualification({
+    return getTopNormalizedRequirements(args.qualificationProfile).map(
+      (requirement) => {
+        const qualification = requirement.text;
+        const primaryQuery = buildFtsQuery([
+          qualification,
+          ...args.qualificationProfile.keywords,
+        ]);
+        const fallbackQuery = buildFtsQuery([
+          ...(args.keywordProfile?.requiredKeywords ?? []),
+          ...(args.keywordProfile?.experienceFocus ?? []),
+          ...args.qualificationProfile.keywords,
+        ]);
+        const primaryRows = primaryQuery
+          ? queryReferenceChunks(db, primaryQuery)
+          : [];
+        const rows =
+          primaryRows.length > 0 || !fallbackQuery
+            ? primaryRows
+            : queryReferenceChunks(db, fallbackQuery);
+        const reranked = rows
+          .map((chunk) => ({
             chunk,
-            qualification,
-            keywordProfile: args.keywordProfile,
-          }),
-        }))
-        .filter((entry) => entry.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .map((entry) => entry.chunk);
-      return {
-        qualification,
-        requirementId: requirement.id,
-        category: requirement.category,
-        priority: requirement.priority,
-        chunks: dedupeChunksByClusterAndFile(reranked).slice(0, maxChunks),
-      };
-    });
+            score: scoreChunkForQualification({
+              chunk,
+              qualification,
+              keywordProfile: args.keywordProfile,
+            }),
+          }))
+          .filter((entry) => entry.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .map((entry) => entry.chunk);
+        return {
+          qualification,
+          requirementId: requirement.id,
+          category: requirement.category,
+          priority: requirement.priority,
+          chunks: dedupeChunksByClusterAndFile(reranked).slice(0, maxChunks),
+        };
+      },
+    );
   } finally {
     db.close();
   }
@@ -1071,7 +1107,9 @@ function rowToChunk(row: unknown): ResumeReferenceChunk {
       typeof record.experienceAnchorId === "string" && record.experienceAnchorId
         ? record.experienceAnchorId
         : undefined,
-    claimType: isEvidenceClaimType(record.claimType) ? record.claimType : undefined,
+    claimType: isEvidenceClaimType(record.claimType)
+      ? record.claimType
+      : undefined,
     anchorSection:
       typeof record.anchorSection === "string" && record.anchorSection
         ? record.anchorSection
@@ -1114,7 +1152,9 @@ export function summarizeEvidenceReferenceHits(
   return out;
 }
 
-function isReferenceKind(value: unknown): value is ResumeReferenceScanItem["kind"] {
+function isReferenceKind(
+  value: unknown,
+): value is ResumeReferenceScanItem["kind"] {
   return (
     value === "resume" ||
     value === "cover" ||
@@ -1186,7 +1226,8 @@ function scoreChunkForQualification(args: {
     score += 4;
   }
   if (/experience|project|skills/i.test(args.chunk.section)) score += 2;
-  if (args.chunk.kind === "resume" || args.chunk.kind === "combined") score += 1;
+  if (args.chunk.kind === "resume" || args.chunk.kind === "combined")
+    score += 1;
   if ((args.chunk.lastModified ?? 0) > 0) score += 0.5;
   return score;
 }

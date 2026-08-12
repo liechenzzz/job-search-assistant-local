@@ -49,7 +49,7 @@ function makeResume(overrides: Record<string, unknown> = {}) {
       experience: {
         items: [
           {
-            id: "exp-opus",
+            id: "exp-research",
             company: "Regional Research Consultancy",
             position: "Associate Consultant",
             period: "2026",
@@ -70,8 +70,8 @@ function makeResume(overrides: Record<string, unknown> = {}) {
       education: {
         items: [
           {
-            school: "University of Toronto",
-            degree: "Master of Urban Innovation",
+            school: "Example University",
+            degree: "Master of Public Policy",
             period: "Class of 2025",
           },
         ],
@@ -83,8 +83,8 @@ function makeResume(overrides: Record<string, unknown> = {}) {
             keywords: ["Dashboarding", "Stakeholder synthesis"],
           },
           {
-            school: "University of Toronto",
-            degree: "Bachelor of Arts (BA), City Studies and Media Studies / 3.61/4.00",
+            school: "Example University",
+            degree: "Bachelor of Arts (BA), Social Science / 3.70/4.00",
             period: "Class of 2023",
             description:
               "<ul><li>Undergraduate training in urban studies, planning, housing, communication, and research methods.</li></ul>",
@@ -105,11 +105,12 @@ function makeEducationBulletResume() {
       education: {
         items: [
           {
-            school: "University of Toronto",
-            degree: "Master of Urban Innovation, GPA: 3.65/4.00 (High Distinction)",
+            school: "Example University",
+            degree:
+              "Master of Public Policy, GPA: 3.80/4.00 (High Distinction)",
             period: "Class of 2025",
             description:
-              "<ul><li>Graduate training in applied research and policy analysis.</li><li>Graduated with a Cumulative GPA of 3.65/4.00 (High Distinction).</li><li>GPA: 3.65/4.00</li></ul>",
+              "<ul><li>Graduate training in applied research and policy analysis.</li><li>Graduated with a Cumulative GPA of 3.80/4.00 (High Distinction).</li><li>GPA: 3.80/4.00</li></ul>",
           },
         ],
       },
@@ -200,7 +201,9 @@ describe("reference-format DOCX renderer", () => {
     expect(html).toContain("SUMMARY OF QUALIFICATIONS");
     expect(html).toContain("RESEARCH &amp; TECHNICAL SKILLS");
     expect(html).toContain("@page { size: A4; margin: 0.48in 0.50in; }");
-    expect(html).toContain(".target-two { font-size: 10.35pt; line-height: 1.30; }");
+    expect(html).toContain(
+      ".target-two { font-size: 10.35pt; line-height: 1.30; }",
+    );
     expect(html).not.toContain("<h2>Summary</h2>");
     expect(html).not.toContain("<h2>Projects</h2>");
   });
@@ -224,16 +227,16 @@ describe("reference-format DOCX renderer", () => {
     );
     expect(xml).toContain("\u2022  Graduated with High Distinction.");
     expect(xml).not.toContain("GPA");
-    expect(xml).not.toContain("3.65/4.00");
-    expect(xml).not.toContain("3.61/4.00");
+    expect(xml).not.toContain("3.80/4.00");
+    expect(xml).not.toContain("3.70/4.00");
     expect(xml.match(/High Distinction/g)?.length ?? 0).toBe(1);
     expect(html).toContain(
       "<li>Graduate training in applied research and policy analysis.</li>",
     );
     expect(html).toContain("<li>Graduated with High Distinction.</li>");
     expect(html).not.toContain("GPA");
-    expect(html).not.toContain("3.65/4.00");
-    expect(html).not.toContain("3.61/4.00");
+    expect(html).not.toContain("3.80/4.00");
+    expect(html).not.toContain("3.70/4.00");
     expect(html.match(/High Distinction/g)?.length ?? 0).toBe(1);
   });
 
@@ -339,7 +342,7 @@ describe("reference-format DOCX renderer", () => {
               description: `<ul>${Array.from({ length: 18 }, () => `<li>${longBullet}</li>`).join("")}</ul>`,
             },
             {
-              company: "City of Mississauga",
+              company: "Example Municipality",
               position: "Strategic Research Consultant",
               period: "2024 - 2025",
               location: "Mississauga",
@@ -351,7 +354,7 @@ describe("reference-format DOCX renderer", () => {
     });
     const xml = buildDocxDocumentXml(resume, { targetPages: 2 });
     const pageBreakIndex = xml.indexOf('<w:br w:type="page"/>');
-    const secondExperienceIndex = xml.indexOf("City of Mississauga");
+    const secondExperienceIndex = xml.indexOf("Example Municipality");
 
     expect(pageBreakIndex).toBeGreaterThan(-1);
     expect(pageBreakIndex).toBeLessThan(secondExperienceIndex);

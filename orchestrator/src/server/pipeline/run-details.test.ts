@@ -35,6 +35,7 @@ function makeSettings() {
     adzunaMaxJobsPerTerm: { value: 50, default: 50, override: null },
     gradcrackerMaxJobsPerTerm: { value: 50, default: 50, override: null },
     startupjobsMaxJobsPerTerm: { value: 50, default: 50, override: null },
+    ontarioPublicSectorMaxJobs: { value: 50, default: 50, override: null },
     jobspyResultsWanted: { value: 20, default: 20, override: null },
     autoSkipScoreThreshold: { value: 65, default: 65, override: null },
     pdfRenderer: { value: "rxresume", default: "rxresume", override: null },

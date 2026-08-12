@@ -38,23 +38,32 @@ export function buildExperienceAnchorBank(args: {
   builtAt?: string;
 }): ExperienceAnchorBuildResult {
   const builtAt = args.builtAt ?? new Date().toISOString();
-  const itemsByPath = new Map(args.items.map((item) => [item.relativePath, item]));
+  const itemsByPath = new Map(
+    args.items.map((item) => [item.relativePath, item]),
+  );
   const groups = new Map<string, AnchorGroup>();
   const orphanEvidenceChunks: ExperienceAnchorBuildResult["diagnostics"]["orphanEvidenceChunks"] =
     [];
 
   for (const inputChunk of args.chunks) {
-    const chunk = enrichAnchorChunk(inputChunk, itemsByPath.get(inputChunk.relativePath));
+    const chunk = enrichAnchorChunk(
+      inputChunk,
+      itemsByPath.get(inputChunk.relativePath),
+    );
     if (!isAnchorEligible(chunk)) {
       orphanEvidenceChunks.push({
         chunkId: chunk.id,
         sourceFile: chunk.fileName,
-        reason: "Chunk is too sparse or comes from an unsupported reference kind.",
+        reason:
+          "Chunk is too sparse or comes from an unsupported reference kind.",
       });
       continue;
     }
 
-    const identity = inferAnchorIdentity(chunk, itemsByPath.get(chunk.relativePath));
+    const identity = inferAnchorIdentity(
+      chunk,
+      itemsByPath.get(chunk.relativePath),
+    );
     const key = anchorGroupKey(identity, chunk);
     const group =
       groups.get(key) ??
@@ -80,7 +89,10 @@ export function buildExperienceAnchorBank(args: {
   }
 
   const chunks = args.chunks.map((chunk) => {
-    const enriched = enrichAnchorChunk(chunk, itemsByPath.get(chunk.relativePath));
+    const enriched = enrichAnchorChunk(
+      chunk,
+      itemsByPath.get(chunk.relativePath),
+    );
     const experienceAnchorId = anchorIdByChunk.get(enriched.id);
     return experienceAnchorId ? { ...enriched, experienceAnchorId } : enriched;
   });
@@ -115,7 +127,8 @@ export function selectExperienceAnchorsForGeneration(args: {
       ...args.qualificationProfile.required,
       ...args.qualificationProfile.preferred,
       ...args.qualificationProfile.keywords,
-      ...(args.qualificationProfile.requirements?.map((item) => item.text) ?? []),
+      ...(args.qualificationProfile.requirements?.map((item) => item.text) ??
+        []),
     ].join(" "),
   );
   const maxAnchors = Math.max(1, Math.min(args.maxAnchors ?? 8, 12));
@@ -169,7 +182,9 @@ function enrichAnchorChunk(
 ): ResumeReferenceChunk {
   const claimType = chunk.claimType ?? inferClaimType(chunk);
   const sourceQuality =
-    chunk.sourceQuality ?? chunk.qualitySignals?.confidence ?? qualityFromItem(item);
+    chunk.sourceQuality ??
+    chunk.qualitySignals?.confidence ??
+    qualityFromItem(item);
   return {
     ...chunk,
     claimType,
@@ -188,7 +203,11 @@ function inferAnchorIdentity(
   chunk: ResumeReferenceChunk,
   item?: ResumeReferenceScanItem,
 ): ExperienceAnchorSummary["identity"] {
-  const text = cleanText([chunk.rawText ?? chunk.text, item?.snippets?.experience].filter(Boolean).join(" "));
+  const text = cleanText(
+    [chunk.rawText ?? chunk.text, item?.snippets?.experience]
+      .filter(Boolean)
+      .join(" "),
+  );
   const atPattern = text.match(
     /\b([A-Z][A-Za-z0-9&.' /-]{2,80})\s+(?:at|with|for)\s+([A-Z][A-Za-z0-9&.' /-]{2,80})\b/,
   );
@@ -203,13 +222,19 @@ function inferAnchorIdentity(
     cleanEntityName(atPattern?.[2] ?? "") ||
     cleanEntityName(companyRolePattern?.[1] ?? "") ||
     cleanFileStem(item?.fileName ?? chunk.fileName);
-  const dateRange = text.match(/\b(?:20\d{2}|19\d{2})\s*(?:[-–—]\s*(?:20\d{2}|present|current))?/i)?.[0];
+  const dateRange = text.match(
+    /\b(?:20\d{2}|19\d{2})\s*(?:[-–—]\s*(?:20\d{2}|present|current))?/i,
+  )?.[0];
   return {
     company: truncate(company, 90),
     title: truncate(title, 90),
     dateRange,
     location: undefined,
-    roleAliases: uniqueList([roleLabel(chunk.roleFamily), title, item?.inferredRole ?? ""]).slice(0, 5),
+    roleAliases: uniqueList([
+      roleLabel(chunk.roleFamily),
+      title,
+      item?.inferredRole ?? "",
+    ]).slice(0, 5),
   };
 }
 
@@ -225,17 +250,25 @@ function anchorGroupKey(
     .filter(Boolean)
     .join("|");
   if (stable.length >= 12) return stable;
-  return [chunk.relativePath || chunk.fileName, chunk.section, chunk.roleFamily].join("|");
+  return [
+    chunk.relativePath || chunk.fileName,
+    chunk.section,
+    chunk.roleFamily,
+  ].join("|");
 }
 
 function buildAnchorSummary(
   group: AnchorGroup,
   builtAt: string,
 ): ExperienceAnchorSummary {
-  const sortedChunks = [...group.chunks].sort((a, b) => a.id.localeCompare(b.id));
+  const sortedChunks = [...group.chunks].sort((a, b) =>
+    a.id.localeCompare(b.id),
+  );
   const sourceChunkIds = sortedChunks.map((chunk) => chunk.id);
   const sourceFiles = Array.from(group.sourceFiles).sort();
-  const facts = uniqueFacts(sortedChunks.flatMap((chunk) => factsFromChunk(chunk)));
+  const facts = uniqueFacts(
+    sortedChunks.flatMap((chunk) => factsFromChunk(chunk)),
+  );
   const byType = (type: NonNullable<ResumeReferenceChunk["claimType"]>) =>
     facts.filter((fact) => fact.type === type).slice(0, MAX_FACTS_PER_SECTION);
   const responsibilities = [
@@ -243,7 +276,9 @@ function buildAnchorSummary(
     ...byType("outcome").slice(0, 4),
   ].slice(0, MAX_FACTS_PER_SECTION);
   const projects = facts
-    .filter((fact) => /project|initiative|program|portfolio|implementation/i.test(fact.text))
+    .filter((fact) =>
+      /project|initiative|program|portfolio|implementation/i.test(fact.text),
+    )
     .slice(0, 8);
   const tools = byType("tool");
   const domains = byType("domain");
@@ -256,9 +291,15 @@ function buildAnchorSummary(
     .filter((fact) => !["tool", "metric"].includes(fact.type))
     .slice(0, MAX_FACTS_PER_SECTION);
   const lowQualitySourceChunkIds = sortedChunks
-    .filter((chunk) => (chunk.sourceQuality ?? chunk.qualitySignals?.confidence) === "low")
+    .filter(
+      (chunk) =>
+        (chunk.sourceQuality ?? chunk.qualitySignals?.confidence) === "low",
+    )
     .map((chunk) => chunk.id);
-  const confidence = anchorConfidence(sortedChunks, lowQualitySourceChunkIds.length);
+  const confidence = anchorConfidence(
+    sortedChunks,
+    lowQualitySourceChunkIds.length,
+  );
   const overviewText =
     responsibilities[0]?.text ||
     strengths[0]?.text ||
@@ -267,7 +308,12 @@ function buildAnchorSummary(
   return {
     experienceAnchorId: buildAnchorId(group.key),
     identity: group.identity,
-    roleOverview: fact(overviewText, sourceChunkIds.slice(0, 3), sourceFiles, confidence),
+    roleOverview: fact(
+      overviewText,
+      sourceChunkIds.slice(0, 3),
+      sourceFiles,
+      confidence,
+    ),
     responsibilityAreas: responsibilities.map(toAnchorFact),
     majorProjects: projects.map(toAnchorFact),
     toolsAndMethods: tools.map(toAnchorFact),
@@ -304,7 +350,9 @@ function buildAnchorSummary(
 }
 
 function factsFromChunk(chunk: ResumeReferenceChunk): Array<
-  ExperienceAnchorFact & { type: NonNullable<ResumeReferenceChunk["claimType"]> }
+  ExperienceAnchorFact & {
+    type: NonNullable<ResumeReferenceChunk["claimType"]>;
+  }
 > {
   const text = cleanText(chunk.rawText ?? chunk.text);
   const pieces = splitFactText(text).slice(0, 6);
@@ -312,7 +360,8 @@ function factsFromChunk(chunk: ResumeReferenceChunk): Array<
     text: truncate(piece, 260),
     sourceChunkIds: [chunk.id],
     sourceFiles: [chunk.relativePath || chunk.fileName],
-    confidence: chunk.sourceQuality ?? chunk.qualitySignals?.confidence ?? "medium",
+    confidence:
+      chunk.sourceQuality ?? chunk.qualitySignals?.confidence ?? "medium",
     type: chunk.claimType ?? inferClaimType(chunk),
   }));
 }
@@ -328,21 +377,40 @@ function splitFactText(text: string): string[] {
 function inferClaimType(
   chunk: ResumeReferenceChunk,
 ): NonNullable<ResumeReferenceChunk["claimType"]> {
-  const text = `${chunk.section} ${chunk.rawText ?? chunk.text} ${chunk.keywords.join(" ")}`.toLowerCase();
-  if (/education|degree|university|college|certificate|certification/.test(text)) {
+  const text =
+    `${chunk.section} ${chunk.rawText ?? chunk.text} ${chunk.keywords.join(" ")}`.toLowerCase();
+  if (
+    /education|degree|university|college|certificate|certification/.test(text)
+  ) {
     return "education";
   }
   if (/\b\d+(?:\.\d+)?%|\$\s?\d|\b\d{2,}\b/.test(text)) return "metric";
-  if (/\b(power bi|tableau|sql|python|sas|excel|r\b|salesforce|jira|figma|dashboard|model|forecast|regression)\b/i.test(text)) {
+  if (
+    /\b(power bi|tableau|sql|python|sas|excel|r\b|salesforce|jira|figma|dashboard|model|forecast|regression)\b/i.test(
+      text,
+    )
+  ) {
     return "tool";
   }
-  if (/\b(stakeholder|client|executive|cross-functional|partner|vendor|public|community)\b/i.test(text)) {
+  if (
+    /\b(stakeholder|client|executive|cross-functional|partner|vendor|public|community)\b/i.test(
+      text,
+    )
+  ) {
     return "stakeholder";
   }
-  if (/\b(policy|market|economic|municipal|public sector|health|finance|insurance|climate|research|operations)\b/i.test(text)) {
+  if (
+    /\b(policy|market|economic|municipal|public sector|health|finance|insurance|climate|research|operations)\b/i.test(
+      text,
+    )
+  ) {
     return "domain";
   }
-  if (/\b(improved|increased|reduced|delivered|launched|built|created|led|managed|optimized|streamlined)\b/i.test(text)) {
+  if (
+    /\b(improved|increased|reduced|delivered|launched|built|created|led|managed|optimized|streamlined)\b/i.test(
+      text,
+    )
+  ) {
     return "outcome";
   }
   if (/summary|profile/i.test(chunk.section)) return "summary";
@@ -355,13 +423,16 @@ function anchorSectionForClaimType(
   if (claimType === "tool") return "toolsAndMethods";
   if (claimType === "domain") return "domains";
   if (claimType === "stakeholder") return "stakeholders";
-  if (claimType === "metric" || claimType === "outcome") return "measurableOutcomes";
+  if (claimType === "metric" || claimType === "outcome")
+    return "measurableOutcomes";
   if (claimType === "summary") return "transferableStrengths";
   if (claimType === "education") return "limitationsOrUnverifiedClaims";
   return "responsibilityAreas";
 }
 
-function uniqueFacts<T extends ExperienceAnchorFact & { type: string }>(facts: T[]): T[] {
+function uniqueFacts<T extends ExperienceAnchorFact & { type: string }>(
+  facts: T[],
+): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const item of facts) {
@@ -406,7 +477,10 @@ function digestChunks(chunks: ResumeReferenceChunk[]): string {
   return createHash("sha1")
     .update(
       chunks
-        .map((chunk) => `${chunk.id}|${chunk.clusterId ?? ""}|${chunk.normalizedText ?? chunk.text}`)
+        .map(
+          (chunk) =>
+            `${chunk.id}|${chunk.clusterId ?? ""}|${chunk.normalizedText ?? chunk.text}`,
+        )
         .sort()
         .join("\n"),
     )
@@ -435,16 +509,26 @@ function scoreAnchorAgainstTerms(
       ...anchor.transferableStrengths.map((item) => item.text),
     ].join(" "),
   );
-  return terms.reduce((sum, term) => sum + (haystack.includes(term) ? 8 : 0), 0);
+  return terms.reduce(
+    (sum, term) => sum + (haystack.includes(term) ? 8 : 0),
+    0,
+  );
 }
 
-function formatFacts(label: string, facts: ExperienceAnchorFact[], max: number): string {
+function formatFacts(
+  label: string,
+  facts: ExperienceAnchorFact[],
+  max: number,
+): string {
   if (facts.length === 0) return "";
   return [
     `${label}:`,
     ...facts
       .slice(0, max)
-      .map((item) => `- ${item.text} [chunks: ${item.sourceChunkIds.slice(0, 3).join(", ")}]`),
+      .map(
+        (item) =>
+          `- ${item.text} [chunks: ${item.sourceChunkIds.slice(0, 3).join(", ")}]`,
+      ),
   ].join("\n");
 }
 
@@ -473,15 +557,19 @@ function cleanFileStem(fileName: string): string {
 }
 
 function cleanEntityName(value: string): string {
-  return value
-    .split(/\b(?:built|delivered|prepared|created|led|managed|developed|improved|using|with|for)\b/i)[0]
-    ?.replace(/[,.|;:]+$/g, "")
-    .replace(/\s+/g, " ")
-    .trim() ?? "";
+  return (
+    value
+      .split(
+        /\b(?:built|delivered|prepared|created|led|managed|developed|improved|using|with|for)\b/i,
+      )[0]
+      ?.replace(/[,.|;:]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim() ?? ""
+  );
 }
 
 function cleanText(text: string): string {
-  return text.replace(/\s+/g, " ").replace(/\u0000/g, "").trim();
+  return text.replace(/\s+/g, " ").replaceAll("\0", "").trim();
 }
 
 function normalize(text: string): string {
@@ -490,7 +578,9 @@ function normalize(text: string): string {
 
 function truncate(text: string, max: number): string {
   const cleaned = cleanText(text);
-  return cleaned.length <= max ? cleaned : `${cleaned.slice(0, max - 3).trim()}...`;
+  return cleaned.length <= max
+    ? cleaned
+    : `${cleaned.slice(0, max - 3).trim()}...`;
 }
 
 function uniqueList(values: string[]): string[] {

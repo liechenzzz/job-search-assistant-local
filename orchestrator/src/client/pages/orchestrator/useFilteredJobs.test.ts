@@ -144,7 +144,6 @@ describe("useFilteredJobs", () => {
     expect(result.current.map((job) => job.id)).toEqual(["recent"]);
   });
 
-
   it("filters by discovered date on the discovered tab", () => {
     const jobs: Job[] = [
       {

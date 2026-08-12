@@ -126,10 +126,8 @@ describe("resume reference RAG index", () => {
     tempDir = await mkdtemp(join(tmpdir(), "job-ops-reference-rag-"));
     process.env.DATA_DIR = tempDir;
     vi.resetModules();
-    const {
-      findReferenceChunksForQualifications,
-      saveResumeReferenceScan,
-    } = await import("./resume-references");
+    const { findReferenceChunksForQualifications, saveResumeReferenceScan } =
+      await import("./resume-references");
 
     const saved = await saveResumeReferenceScan({
       scannedAt: new Date().toISOString(),
@@ -174,7 +172,9 @@ describe("resume reference RAG index", () => {
 
     const hits = await findReferenceChunksForQualifications({
       qualificationProfile: {
-        required: ["Experience with dashboard reporting and quality assurance."],
+        required: [
+          "Experience with dashboard reporting and quality assurance.",
+        ],
         preferred: [],
         keywords: ["Dashboard", "Reporting", "Quality assurance"],
         confidence: "high",
@@ -398,10 +398,8 @@ describe("resume reference RAG index", () => {
     tempDir = await mkdtemp(join(tmpdir(), "job-ops-reference-rag-"));
     process.env.DATA_DIR = tempDir;
     vi.resetModules();
-    const {
-      findReferenceChunksForQualifications,
-      saveResumeReferenceScan,
-    } = await import("./resume-references");
+    const { findReferenceChunksForQualifications, saveResumeReferenceScan } =
+      await import("./resume-references");
 
     await saveResumeReferenceScan({
       scannedAt: new Date().toISOString(),
@@ -442,7 +440,9 @@ describe("resume reference RAG index", () => {
 
     const hits = await findReferenceChunksForQualifications({
       qualificationProfile: {
-        required: ["Experience translating customer ambiguity into recommendations."],
+        required: [
+          "Experience translating customer ambiguity into recommendations.",
+        ],
         preferred: [],
         keywords: [],
         confidence: "high",
@@ -510,10 +510,8 @@ describe("resume reference RAG index", () => {
     tempDir = await mkdtemp(join(tmpdir(), "job-ops-reference-rag-"));
     process.env.DATA_DIR = tempDir;
     vi.resetModules();
-    const {
-      findReferenceChunksForQualifications,
-      saveResumeReferenceScan,
-    } = await import("./resume-references");
+    const { findReferenceChunksForQualifications, saveResumeReferenceScan } =
+      await import("./resume-references");
 
     await saveResumeReferenceScan({
       scannedAt: new Date().toISOString(),

@@ -1,22 +1,22 @@
 import { readFile } from "node:fs/promises";
 import { resolveDocumentPolicy } from "@shared/document-policy.js";
 import { buildJdQualificationProfile } from "@shared/jd-qualification-profile.js";
+import { SEMANTIC_QUALIFICATION_ENGINE_VERSION } from "@shared/qualification-semantics.js";
 import { buildResumeAlignmentReport } from "@shared/resume-alignment.js";
 import { buildResumeCoveragePlan } from "@shared/resume-coverage-plan.js";
-import { SEMANTIC_QUALIFICATION_ENGINE_VERSION } from "@shared/qualification-semantics.js";
 import type {
   Job,
   JobDocumentDiagnostics,
   ResumeAlignmentReport,
-  ResumeServiceFitReport,
   ResumeProfile,
+  ResumeServiceFitReport,
   TailoredExperienceItem,
 } from "@shared/types";
 import { getDesignResumeForTargetPages } from "./design-resume";
 import { getPdfPath, pdfExists } from "./pdf";
 import { getProfile } from "./profile";
-import { findResumeReferenceEvidenceForQualifications } from "./resume-references";
 import { resolveResumeGenerationDecisionForJob } from "./resume-generation-decision";
+import { findResumeReferenceEvidenceForQualifications } from "./resume-references";
 import { sanitizeResumeServiceFitReport } from "./resume-service-value";
 
 function parseTailoredSkillGroups(raw: string | null): number {
@@ -29,7 +29,9 @@ function parseTailoredSkillGroups(raw: string | null): number {
   }
 }
 
-function parseAlignmentReport(raw: string | null): ResumeAlignmentReport | null {
+function parseAlignmentReport(
+  raw: string | null,
+): ResumeAlignmentReport | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<ResumeAlignmentReport>;
@@ -50,30 +52,44 @@ function parseAlignmentReport(raw: string | null): ResumeAlignmentReport | null 
       score: Math.max(0, Math.min(100, Math.round(parsed.score))),
       status: parsed.status,
       missingRequired: Array.isArray(parsed.missingRequired)
-        ? parsed.missingRequired.filter((item): item is string => typeof item === "string").slice(0, 5)
+        ? parsed.missingRequired
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       partialRequired: Array.isArray(parsed.partialRequired)
-        ? parsed.partialRequired.filter((item): item is string => typeof item === "string").slice(0, 5)
+        ? parsed.partialRequired
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       matchedSections:
         parsed.matchedSections && typeof parsed.matchedSections === "object"
           ? (parsed.matchedSections as Record<string, number>)
           : {},
       referenceUsed: Array.isArray(parsed.referenceUsed)
-        ? parsed.referenceUsed.filter((item): item is string => typeof item === "string").slice(0, 5)
+        ? parsed.referenceUsed
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       humanInputNeeded: Array.isArray(parsed.humanInputNeeded)
-        ? parsed.humanInputNeeded.filter((item): item is string => typeof item === "string").slice(0, 5)
+        ? parsed.humanInputNeeded
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       repairableRequired: Array.isArray(parsed.repairableRequired)
-        ? parsed.repairableRequired.filter((item): item is string => typeof item === "string").slice(0, 5)
+        ? parsed.repairableRequired
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       autoRewriteApplied:
         typeof parsed.autoRewriteApplied === "boolean"
           ? parsed.autoRewriteApplied
           : undefined,
-      wordingGapsAfterAutoRewrite: Array.isArray(parsed.wordingGapsAfterAutoRewrite)
-        ? parsed.wordingGapsAfterAutoRewrite.filter((item): item is string => typeof item === "string").slice(0, 5)
+      wordingGapsAfterAutoRewrite: Array.isArray(
+        parsed.wordingGapsAfterAutoRewrite,
+      )
+        ? parsed.wordingGapsAfterAutoRewrite
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       evidenceFit:
         parsed.evidenceFit && typeof parsed.evidenceFit === "object"
@@ -89,7 +105,9 @@ function parseAlignmentReport(raw: string | null): ResumeAlignmentReport | null 
   }
 }
 
-function parseServiceFitReport(raw: string | null): ResumeServiceFitReport | null {
+function parseServiceFitReport(
+  raw: string | null,
+): ResumeServiceFitReport | null {
   if (!raw) return null;
   try {
     return sanitizeResumeServiceFitReport(JSON.parse(raw));
@@ -280,12 +298,16 @@ export async function getJobDocumentDiagnostics(
     0,
   );
   const minTwoPageExperienceBullets =
-    tailoredExperience.length > 0 ? Math.max(22, tailoredExperience.length * 7) : 22;
+    tailoredExperience.length > 0
+      ? Math.max(22, tailoredExperience.length * 7)
+      : 22;
   const estimatedResumeWords =
     countWords(job.tailoredSummary) +
     countWords(parseTailoredSkillsText(job.tailoredSkills)) +
     tailoredExperience.reduce(
-      (sum, item) => sum + item.bullets.reduce((inner, bullet) => inner + countWords(bullet), 0),
+      (sum, item) =>
+        sum +
+        item.bullets.reduce((inner, bullet) => inner + countWords(bullet), 0),
       0,
     );
   const skillsState = await getDesignResumeSkillsState(
@@ -378,7 +400,9 @@ export async function getJobDocumentDiagnostics(
     recommendations.push("Review the missing qualifications before applying.");
   } else if (alignment?.status === "warning") {
     issues.push(`Resume match is partial (${alignment.score}/100).`);
-    recommendations.push("Check partial or missing qualifications before applying.");
+    recommendations.push(
+      "Check partial or missing qualifications before applying.",
+    );
   }
 
   return {

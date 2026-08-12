@@ -957,8 +957,7 @@ async function fetchJob(
   const employer = parseEmployerFromTitle(title) ?? source.employer;
   const classification = classifyJobRelevance({
     source: source.sourceId,
-    sourceKind:
-      source.kind === "substack-feed" ? "curated" : "public-sector",
+    sourceKind: source.kind === "substack-feed" ? "curated" : "public-sector",
     title,
     employer,
     description: text,

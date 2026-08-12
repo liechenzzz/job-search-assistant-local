@@ -40,10 +40,29 @@ export function getDiscoveryAgeTier(
 }
 
 const MONTH_MAP: Record<string, number> = {
-  jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2,
-  apr: 3, april: 3, may: 4, jun: 5, june: 5,
-  jul: 6, july: 6, aug: 7, august: 7, sep: 8, september: 8,
-  oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
+  jan: 0,
+  january: 0,
+  feb: 1,
+  february: 1,
+  mar: 2,
+  march: 2,
+  apr: 3,
+  april: 3,
+  may: 4,
+  jun: 5,
+  june: 5,
+  jul: 6,
+  july: 6,
+  aug: 7,
+  august: 7,
+  sep: 8,
+  september: 8,
+  oct: 9,
+  october: 9,
+  nov: 10,
+  november: 10,
+  dec: 11,
+  december: 11,
 };
 
 function makeDate(year: number, month: number, day: number): Date | null {
@@ -51,7 +70,9 @@ function makeDate(year: number, month: number, day: number): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function parseDeadlineDate(deadline: string | null | undefined): Date | null {
+export function parseDeadlineDate(
+  deadline: string | null | undefined,
+): Date | null {
   if (!deadline) return null;
   const trimmed = deadline.trim();
   if (!trimmed) return null;
@@ -148,8 +169,12 @@ export function isDiscoveryActionQueueCandidate(
   }
 
   if (ageTier === "aging_24") {
-    return job.relevanceStatus === "high_match" || urgency === "closing_this_month";
+    return (
+      job.relevanceStatus === "high_match" || urgency === "closing_this_month"
+    );
   }
 
-  return job.relevanceStatus === "high_match" && urgency === "closing_this_month";
+  return (
+    job.relevanceStatus === "high_match" && urgency === "closing_this_month"
+  );
 }

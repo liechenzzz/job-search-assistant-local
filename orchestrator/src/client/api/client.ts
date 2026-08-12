@@ -27,14 +27,13 @@ import type {
   JobChatMessage,
   JobChatStreamEvent,
   JobChatThread,
+  JobDocumentDiagnostics,
   JobListItem,
   JobNote,
   JobOutcome,
   JobSource,
   JobsListResponse,
   JobsRevisionResponse,
-  JobDocumentDiagnostics,
-  ResumeAlignmentDetailResponse,
   JobTracerLinksResponse,
   LocationMatchStrictness,
   LocationSearchScope,
@@ -53,6 +52,7 @@ import type {
   PostApplicationRouterStageTarget,
   PostApplicationSyncRun,
   ProfileStatusResponse,
+  ResumeAlignmentDetailResponse,
   ResumeProfile,
   ResumeProjectCatalogItem,
   ResumeReferenceIngestFile,
@@ -1918,11 +1918,14 @@ export async function importDesignResumeFromRxResume(
   );
 }
 
-export async function importDesignResumeFromFile(input: {
-  fileName: string;
-  mediaType?: string;
-  dataBase64: string;
-}, variant?: DesignResumeVariant): Promise<DesignResumeDocument> {
+export async function importDesignResumeFromFile(
+  input: {
+    fileName: string;
+    mediaType?: string;
+    dataBase64: string;
+  },
+  variant?: DesignResumeVariant,
+): Promise<DesignResumeDocument> {
   return fetchApi<DesignResumeDocument>(
     `/design-resume/import/file${designResumeVariantQuery(variant)}`,
     {
@@ -1951,12 +1954,15 @@ export async function updateDesignResume(
   );
 }
 
-export async function uploadDesignResumePicture(input: {
-  fileName: string;
-  dataUrl: string;
-  baseRevision?: number;
-  document?: DesignResumeJson;
-}, variant?: DesignResumeVariant): Promise<DesignResumeDocument> {
+export async function uploadDesignResumePicture(
+  input: {
+    fileName: string;
+    dataUrl: string;
+    baseRevision?: number;
+    document?: DesignResumeJson;
+  },
+  variant?: DesignResumeVariant,
+): Promise<DesignResumeDocument> {
   return fetchApi<DesignResumeDocument>(
     `/design-resume/assets${designResumeVariantQuery(variant)}`,
     {
@@ -1966,10 +1972,13 @@ export async function uploadDesignResumePicture(input: {
   );
 }
 
-export async function deleteDesignResumePicture(input?: {
-  baseRevision?: number;
-  document?: DesignResumeJson;
-}, variant?: DesignResumeVariant): Promise<DesignResumeDocument> {
+export async function deleteDesignResumePicture(
+  input?: {
+    baseRevision?: number;
+    document?: DesignResumeJson;
+  },
+  variant?: DesignResumeVariant,
+): Promise<DesignResumeDocument> {
   return fetchApi<DesignResumeDocument>(
     `/design-resume/assets/picture${designResumeVariantQuery(variant)}`,
     {
@@ -2077,10 +2086,13 @@ export async function saveResumeReferenceScan(
 export async function ingestResumeReferenceFiles(input: {
   files: ResumeReferenceIngestFile[];
 }): Promise<ResumeReferenceScanResult> {
-  return fetchApi<ResumeReferenceScanResult>("/settings/resume-references/ingest", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  return fetchApi<ResumeReferenceScanResult>(
+    "/settings/resume-references/ingest",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export async function validateRxresume(input?: {

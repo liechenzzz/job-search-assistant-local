@@ -2,7 +2,12 @@
 
 // -- Framing decision from bridge judge --
 
-export type ClaimScope = "framing" | "audience" | "domain" | "method" | "output";
+export type ClaimScope =
+  | "framing"
+  | "audience"
+  | "domain"
+  | "method"
+  | "output";
 
 export type FramingLegality = "allowed" | "blocked" | "uncertain";
 

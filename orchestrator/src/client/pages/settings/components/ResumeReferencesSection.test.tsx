@@ -35,7 +35,9 @@ function item(overrides: Partial<ReferenceItem>): ReferenceItem {
   };
 }
 
-function scan(overrides: Partial<ResumeReferenceScanResult>): ResumeReferenceScanResult {
+function scan(
+  overrides: Partial<ResumeReferenceScanResult>,
+): ResumeReferenceScanResult {
   return {
     scannedAt: "2026-05-20T00:00:00.000Z",
     filesConsidered: 1,
@@ -163,9 +165,7 @@ describe("buildRepresentatives", () => {
     const guide = buildWritingGuide(representatives);
 
     expect(guide.consulting_strategy?.resumeStyle).toContain("strategy");
-    expect(guide.consulting_strategy?.bulletStyle).toContain(
-      "executive-ready",
-    );
+    expect(guide.consulting_strategy?.bulletStyle).toContain("executive-ready");
     expect(guide.consulting_strategy?.coverLetterStyle).toContain(
       "To Whom It May Concern",
     );
@@ -266,7 +266,9 @@ Delivered market research, reporting, and business analysis for senior stakehold
     });
 
     const limited = limitReferenceChunks(chunks);
-    const representedFiles = new Set(limited.map((chunk) => chunk.relativePath));
+    const representedFiles = new Set(
+      limited.map((chunk) => chunk.relativePath),
+    );
 
     expect(limited).toHaveLength(18_000);
     expect(representedFiles.size).toBe(450);
@@ -299,11 +301,19 @@ describe("saveConfirmedResumeReferenceScan", () => {
   });
 
   it("returns readback only when the indexed scan matches the saved scan", async () => {
-    const saved = scan({ ragProbe: { checkedAt: "2026-05-20T00:00:01.000Z", hitCount: 1, sampleFiles: ["reference.docx"] } });
+    const saved = scan({
+      ragProbe: {
+        checkedAt: "2026-05-20T00:00:01.000Z",
+        hitCount: 1,
+        sampleFiles: ["reference.docx"],
+      },
+    });
     apiMocks.saveResumeReferenceScan.mockResolvedValue(saved);
     apiMocks.getResumeReferenceScan.mockResolvedValue(saved);
 
-    await expect(saveConfirmedResumeReferenceScan(saved)).resolves.toEqual(saved);
+    await expect(saveConfirmedResumeReferenceScan(saved)).resolves.toEqual(
+      saved,
+    );
   });
 });
 

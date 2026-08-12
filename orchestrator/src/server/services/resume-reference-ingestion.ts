@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import { execFile as execFileCallback } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -200,12 +200,17 @@ export async function ingestResumeReferenceFiles(
   const chunks = limitReferenceChunks(dedupedChunks);
   const clusters = new Set(chunks.map((chunk) => buildClusterId(chunk)));
   const items = ingested.map((entry) => entry.item);
-  const extractorCounts = fileDiagnostics.reduce<ExtractorCounts>((counts, diagnostic) => {
-    counts[diagnostic.extractor] = (counts[diagnostic.extractor] ?? 0) + 1;
-    return counts;
-  }, {});
+  const extractorCounts = fileDiagnostics.reduce<ExtractorCounts>(
+    (counts, diagnostic) => {
+      counts[diagnostic.extractor] = (counts[diagnostic.extractor] ?? 0) + 1;
+      return counts;
+    },
+    {},
+  );
   const missingDependencies = Array.from(
-    new Set(fileDiagnostics.flatMap((diagnostic) => diagnostic.missingDependencies)),
+    new Set(
+      fileDiagnostics.flatMap((diagnostic) => diagnostic.missingDependencies),
+    ),
   ).sort();
   return summarize(items, existingItems, chunks, dedupedChunks.length, {
     totalFiles: parsed.files.length,
@@ -214,12 +219,18 @@ export async function ingestResumeReferenceFiles(
     emptyTextFiles,
     lowQualityFiles,
     duplicateChunkRatio: rawChunks.length
-      ? Number(((rawChunks.length - dedupedChunks.length) / rawChunks.length).toFixed(4))
+      ? Number(
+          (
+            (rawChunks.length - dedupedChunks.length) /
+            rawChunks.length
+          ).toFixed(4),
+        )
       : 0,
     clusterCount: clusters.size,
     chunkCount: chunks.length,
     extractorCounts,
-    ocrFileCount: fileDiagnostics.filter((diagnostic) => diagnostic.ocrUsed).length,
+    ocrFileCount: fileDiagnostics.filter((diagnostic) => diagnostic.ocrUsed)
+      .length,
     partialOcrFileCount: fileDiagnostics.filter(
       (diagnostic) => diagnostic.partialOcr,
     ).length,
@@ -337,7 +348,9 @@ async function extractFileText(
       text,
       pageCount: null,
       confidence: text.length >= LOW_QUALITY_TEXT_LENGTH ? "high" : "medium",
-      reason: text ? "DOCX text extracted from word/document.xml." : "DOCX document.xml text was empty.",
+      reason: text
+        ? "DOCX text extracted from word/document.xml."
+        : "DOCX document.xml text was empty.",
       extractor: "docx_xml",
       ocrUsed: false,
       missingDependencies: [],
@@ -383,7 +396,8 @@ async function extractPdfTextWithFallback(
     return {
       text: ocrText.text,
       pageCount,
-      confidence: ocrText.text.length >= LOW_QUALITY_TEXT_LENGTH ? "medium" : "low",
+      confidence:
+        ocrText.text.length >= LOW_QUALITY_TEXT_LENGTH ? "medium" : "low",
       reason: ocrText.reason,
       extractor: "tesseract_ocr",
       ocrUsed: true,
@@ -463,7 +477,10 @@ async function withTempPdf<T>(
 function commandMissing(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const maybeCode = (error as NodeJS.ErrnoException).code;
-  return maybeCode === "ENOENT" || /not recognized|not found|ENOENT/i.test(error.message);
+  return (
+    maybeCode === "ENOENT" ||
+    /not recognized|not found|ENOENT/i.test(error.message)
+  );
 }
 
 async function extractPdfTextWithPoppler(
@@ -581,11 +598,14 @@ async function extractPdfTextWithOcr(
 
 function extractPdfTextLightweight(buffer: Buffer): string {
   const latin = buffer.toString("latin1");
-  const literalStrings = Array.from(latin.matchAll(/\((?:\\.|[^\\)]){2,500}\)/g))
+  const literalStrings = Array.from(
+    latin.matchAll(/\((?:\\.|[^\\)]){2,500}\)/g),
+  )
     .map((match) => decodePdfLiteral(match[0]))
     .filter((value) => /[A-Za-z]{3,}/.test(value));
   const utf8Readable = buffer
     .toString("utf8")
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: Lightweight PDF extraction intentionally keeps only printable ASCII plus tab and line breaks.
     .replace(/[^\x09\x0a\x0d\x20-\x7e]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -643,22 +663,22 @@ function detectSections(text: string): string[] {
 }
 
 function extractKeywords(text: string): string[] {
-  const found = KEYWORD_PATTERNS.filter(([, pattern]) => pattern.test(text)).map(
-    ([label]) => label,
-  );
+  const found = KEYWORD_PATTERNS.filter(([, pattern]) =>
+    pattern.test(text),
+  ).map(([label]) => label);
   const acronyms = text.match(/\b[A-Z]{2,6}\b/g) ?? [];
   return Array.from(new Set([...found, ...acronyms])).slice(0, 30);
 }
 
 function cleanText(text: string): string {
-  return text.replace(/\s+/g, " ").replace(/\u0000/g, "").trim();
+  return text.replace(/\s+/g, " ").replaceAll("\0", "").trim();
 }
 
 function cleanLineText(text: string): string {
   return text
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
-    .replace(/\u0000/g, "")
+    .replaceAll("\0", "")
     .trim();
 }
 
@@ -712,13 +732,17 @@ function extractReferenceSnippets(
   if (kind === "cover") {
     const reLine = normalized.match(/\bRe:\s*[^.]{1,180}/i)?.[0] ?? "";
     return {
-      coverLetter: clip([normalized.slice(0, 500), reLine].filter(Boolean).join(" "), 800),
+      coverLetter: clip(
+        [normalized.slice(0, 500), reLine].filter(Boolean).join(" "),
+        800,
+      ),
     };
   }
 
   const summaryMatch =
-    normalized.match(/\b(?:summary|profile|objective)\b[:\s-]+(.{80,500})/i)?.[1] ??
-    normalized.slice(0, 420);
+    normalized.match(
+      /\b(?:summary|profile|objective)\b[:\s-]+(.{80,500})/i,
+    )?.[1] ?? normalized.slice(0, 420);
   const bulletMatches = Array.from(
     text.matchAll(/(?:^|\n|•|-|\*)\s*([A-Z][^\n]{45,220})/g),
   )
@@ -733,20 +757,36 @@ function extractReferenceSnippets(
   };
 }
 
-function createChunkId(relativePath: string, section: string, index: number): string {
-  const pathHash = createHash("sha1").update(relativePath).digest("hex").slice(0, 10);
+function createChunkId(
+  relativePath: string,
+  section: string,
+  index: number,
+): string {
+  const pathHash = createHash("sha1")
+    .update(relativePath)
+    .digest("hex")
+    .slice(0, 10);
   const slug = section.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return `${pathHash}#${slug}-${index}`;
 }
 
 const SECTION_HEADING_PATTERNS: Array<[string, RegExp]> = [
-  ["Summary", /^(?:summary|professional summary|profile|professional profile|objective)$/i],
-  ["Skills", /^(?:skills|technical skills|core competencies|key skills|competencies)$/i],
+  [
+    "Summary",
+    /^(?:summary|professional summary|profile|professional profile|objective)$/i,
+  ],
+  [
+    "Skills",
+    /^(?:skills|technical skills|core competencies|key skills|competencies)$/i,
+  ],
   [
     "Experience",
     /^(?:experience|professional experience|work experience|work history|employment history|relevant experience)$/i,
   ],
-  ["Projects", /^(?:projects|selected projects|portfolio|project experience)$/i],
+  [
+    "Projects",
+    /^(?:projects|selected projects|portfolio|project experience)$/i,
+  ],
   [
     "Education",
     /^(?:education|academic|academic background|education and credentials|education & credentials)$/i,
@@ -839,9 +879,9 @@ export function buildReferenceChunks(
       .split(/\n{2,}|(?=\bRe:\s*)/i)
       .map(cleanText)
       .filter((line) => line.length >= 40);
-    paragraphs.forEach((paragraph, index) =>
-      pushChunk(index === 0 ? "Cover Opening" : "Cover Letter", paragraph),
-    );
+    paragraphs.forEach((paragraph, index) => {
+      pushChunk(index === 0 ? "Cover Opening" : "Cover Letter", paragraph);
+    });
     return chunks;
   }
 
@@ -875,7 +915,9 @@ export function buildReferenceChunks(
   return chunks;
 }
 
-function buildClusterId(input: Pick<ResumeReferenceChunk, "section" | "text">): string {
+function buildClusterId(
+  input: Pick<ResumeReferenceChunk, "section" | "text">,
+): string {
   return createHash("sha1")
     .update(`${input.section}:${normalizeClusterText(input.text)}`)
     .digest("hex")
@@ -886,7 +928,10 @@ function normalizeClusterText(text: string): string {
   return cleanText(text)
     .toLowerCase()
     .replace(/\b\d{4}\b/g, "")
-    .replace(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b/g, "")
+    .replace(
+      /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b/g,
+      "",
+    )
     .replace(/[^a-z0-9+#.% ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -946,7 +991,9 @@ export function limitReferenceChunks(
   return selected;
 }
 
-function buildCoverage(items: ResumeReferenceScanItem[]): ResumeReferenceScanResult["coverage"] {
+function buildCoverage(
+  items: ResumeReferenceScanItem[],
+): ResumeReferenceScanResult["coverage"] {
   return items.reduce<Record<string, number>>((coverage, item) => {
     coverage[item.inferredRole] = (coverage[item.inferredRole] ?? 0) + 1;
     return coverage;
@@ -961,7 +1008,10 @@ function sortNewestFirst(
   a: ResumeReferenceScanItem,
   b: ResumeReferenceScanItem,
 ): number {
-  return (b.lastModified ?? 0) - (a.lastModified ?? 0) || a.fileName.localeCompare(b.fileName);
+  return (
+    (b.lastModified ?? 0) - (a.lastModified ?? 0) ||
+    a.fileName.localeCompare(b.fileName)
+  );
 }
 
 function pickRepresentativeResume(
@@ -975,9 +1025,14 @@ function pickRepresentativeResume(
     roleFamily === "consulting_strategy"
       ? candidates.filter((item) => item.pageCount === 1)
       : roleFamily === "public_sector_policy_economic_development"
-        ? candidates.filter((item) => item.pageCount === null || item.pageCount >= 2)
+        ? candidates.filter(
+            (item) => item.pageCount === null || item.pageCount >= 2,
+          )
         : candidates;
-  return [...(preferred.length ? preferred : candidates)].sort(sortNewestFirst)[0] ?? null;
+  return (
+    [...(preferred.length ? preferred : candidates)].sort(sortNewestFirst)[0] ??
+    null
+  );
 }
 
 function pickRepresentativeCover(
@@ -1004,7 +1059,9 @@ export function buildRepresentatives(
       resume: pickRepresentativeResume(items, roleFamily),
       coverLetter: pickRepresentativeCover(items, roleFamily),
     }))
-    .filter((representative) => representative.resume || representative.coverLetter);
+    .filter(
+      (representative) => representative.resume || representative.coverLetter,
+    );
 }
 
 export function buildWritingGuide(
@@ -1054,7 +1111,9 @@ function summarize(
   existingItems: ResumeReferenceScanItem[] = [],
   chunks: ResumeReferenceChunk[] = [],
   dedupedChunkCount = 0,
-  ingestionDiagnostics: NonNullable<ResumeReferenceScanResult["ingestionDiagnostics"]>,
+  ingestionDiagnostics: NonNullable<
+    ResumeReferenceScanResult["ingestionDiagnostics"]
+  >,
 ): ResumeReferenceScanResult {
   const existingByPath = new Map(
     existingItems.map((item) => [item.relativePath, item]),

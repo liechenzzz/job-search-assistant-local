@@ -1608,9 +1608,7 @@ export const SettingsPage: React.FC = () => {
       );
       break;
     case "resume-references":
-      activeSectionContent = (
-        <ResumeReferencesSection layoutMode="panel" />
-      );
+      activeSectionContent = <ResumeReferencesSection layoutMode="panel" />;
       break;
     case "webhooks":
       activeSectionContent = (

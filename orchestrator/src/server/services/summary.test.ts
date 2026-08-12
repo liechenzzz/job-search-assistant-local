@@ -63,7 +63,8 @@ const {
               requirement,
               status: "no_evidence",
               chunks: [],
-              missingReason: "No matching resume evidence chunk found in the evidence bank.",
+              missingReason:
+                "No matching resume evidence chunk found in the evidence bank.",
             };
       }),
   ),
@@ -73,19 +74,22 @@ const {
   selectFormatReferenceSummariesMock: vi.fn(),
   summarizeEvidenceReferenceHitsMock: vi.fn(
     (hits: ResumeReferenceKnowledgeHit[]): ResumeGenerationReferenceSummary[] =>
-    hits.flatMap((hit) =>
-      hit.chunks.map((chunk) => ({
-        purpose: "evidence",
-        fileName: chunk.fileName,
-        relativePath: chunk.relativePath,
-        roleFamily: chunk.roleFamily,
-        section: chunk.section,
-      })),
-    ),
+      hits.flatMap((hit) =>
+        hit.chunks.map((chunk) => ({
+          purpose: "evidence",
+          fileName: chunk.fileName,
+          relativePath: chunk.relativePath,
+          roleFamily: chunk.roleFamily,
+          section: chunk.section,
+        })),
+      ),
   ),
   rerankSelectedResumeEvidenceMock: vi.fn(
-    async ({ fallbackSelectedEvidence }: { fallbackSelectedEvidence: unknown }) =>
+    async ({
       fallbackSelectedEvidence,
+    }: {
+      fallbackSelectedEvidence: unknown;
+    }) => fallbackSelectedEvidence,
   ),
   getSettingMock: vi.fn(),
 }));
@@ -139,7 +143,8 @@ vi.mock("./writing-style", async (importOriginal) => {
 vi.mock("./resume-references", () => ({
   buildResumeReferenceInstructions: buildResumeReferenceInstructionsMock,
   buildSelectedResumeEvidence: buildSelectedResumeEvidenceMock,
-  findReferenceChunksForQualifications: findReferenceChunksForQualificationsMock,
+  findReferenceChunksForQualifications:
+    findReferenceChunksForQualificationsMock,
   findResumeReferenceEvidenceForQualifications:
     findResumeReferenceEvidenceForQualificationsMock,
   getExperienceAnchorSummaries: getExperienceAnchorSummariesMock,
@@ -162,7 +167,8 @@ const POSITIONING_PLAN = {
     "Market intelligence analyst translating research into venture-support recommendations.",
   targetPitch:
     "Market intelligence analyst supporting venture decisions through research, data analysis, and client-ready recommendations.",
-  sourcePitch: "Public-sector workforce development and labour-market research analyst.",
+  sourcePitch:
+    "Public-sector workforce development and labour-market research analyst.",
   pitchDelta:
     "Translate sector and workforce research evidence into market intelligence and venture-support language without claiming direct health venture ownership.",
   allowedTranslations: [
@@ -181,12 +187,17 @@ const POSITIONING_PLAN = {
     {
       id: "exp-1",
       use: "primary",
-      reason: "Best evidence for research, analysis, and client-ready recommendations.",
-      rewriteGoal: "market and sector intelligence for client-ready recommendations",
+      reason:
+        "Best evidence for research, analysis, and client-ready recommendations.",
+      rewriteGoal:
+        "market and sector intelligence for client-ready recommendations",
     },
   ],
   targetFrame: "Market intelligence analyst for venture-support decisions.",
-  avoidFrame: ["public-sector policy-only analyst", "labour-market-only analyst"],
+  avoidFrame: [
+    "public-sector policy-only analyst",
+    "labour-market-only analyst",
+  ],
   primaryEvidenceRoles: ["exp-1"],
   supportingEvidenceRoles: [],
   downplayedRoles: [],
@@ -268,7 +279,10 @@ const DEFAULT_SERVICE_VALUE_BRIEF = {
     "market opportunity assessment",
     "partnership and growth prioritization",
   ],
-  expectedDeliverables: ["client-ready recommendations", "market research briefs"],
+  expectedDeliverables: [
+    "client-ready recommendations",
+    "market research briefs",
+  ],
   mustSignalConcepts: [
     "market intelligence",
     "venture clients",
@@ -292,7 +306,10 @@ const DEFAULT_SERVICE_FIT_REPORT = {
   status: "pass",
   score: 90,
   targetBuyerNeed: DEFAULT_SERVICE_VALUE_BRIEF.buyerNeed,
-  resumeCurrentlySignals: ["market intelligence", "client-ready recommendations"],
+  resumeCurrentlySignals: [
+    "market intelligence",
+    "client-ready recommendations",
+  ],
   matchedServiceValues: ["market opportunity analysis"],
   missingOrWeakServiceValues: [],
   oldFrameRisks: [],
@@ -332,7 +349,10 @@ function mockCallJsonSequenceWithPlan(
       const next = queue[0] as
         | { data?: { verdict?: string; serviceFitReport?: unknown } }
         | undefined;
-      if (next?.data?.verdict === "pass" || next?.data?.verdict === "needs_patch") {
+      if (
+        next?.data?.verdict === "pass" ||
+        next?.data?.verdict === "needs_patch"
+      ) {
         return queue.shift();
       }
       return {
@@ -348,7 +368,12 @@ function mockCallJsonSequenceWithPlan(
     }
     if (schemaName === "resume_tailoring_patch") {
       const next = queue[0] as
-        | { data?: { summarySkillsPatch?: unknown; experiencePatches?: unknown } }
+        | {
+            data?: {
+              summarySkillsPatch?: unknown;
+              experiencePatches?: unknown;
+            };
+          }
         | undefined;
       if (next?.data?.summarySkillsPatch || next?.data?.experiencePatches) {
         return queue.shift();
@@ -369,9 +394,7 @@ function mockCallJsonSequenceWithPlan(
       };
     }
     if (schemaName === "resume_alignment_coverage_judge") {
-      const next = queue[0] as
-        | { data?: { items?: unknown[] } }
-        | undefined;
+      const next = queue[0] as { data?: { items?: unknown[] } } | undefined;
       if (Array.isArray(next?.data?.items)) {
         return queue.shift();
       }
@@ -381,9 +404,7 @@ function mockCallJsonSequenceWithPlan(
       };
     }
     if (schemaName === "resume_pitch_judge") {
-      const next = queue[0] as
-        | { data?: { verdict?: string } }
-        | undefined;
+      const next = queue[0] as { data?: { verdict?: string } } | undefined;
       if (next?.data?.verdict === "pass" || next?.data?.verdict === "fail") {
         return queue.shift();
       }
@@ -391,7 +412,8 @@ function mockCallJsonSequenceWithPlan(
         success: true,
         data: {
           verdict: "pass",
-          dominantPitchDetected: positioningPlan.targetPitch ?? positioningPlan.targetFrame,
+          dominantPitchDetected:
+            positioningPlan.targetPitch ?? positioningPlan.targetFrame,
           targetPitchMatched: true,
           sourcePitchDominating: false,
           failedSections: [],
@@ -487,26 +509,16 @@ describe("generateTailoring", () => {
     expect(callJsonMock.mock.calls.length).toBeGreaterThanOrEqual(1);
 
     const prompt = promptContaining("WRITING STYLE:");
-    expect(prompt).toContain(
-      "WRITING STYLE:",
-    );
+    expect(prompt).toContain("WRITING STYLE:");
     expect(prompt).toContain("Tone: friendly");
     expect(prompt).toContain("Formality: low");
-    expect(prompt).toContain(
-      "Additional constraints: Keep it under 90 words",
-    );
-    expect(prompt).toContain(
-      "Avoid these words or phrases: synergy",
-    );
-    expect(prompt).toContain(
-      "Output language for summary and skills: German",
-    );
+    expect(prompt).toContain("Additional constraints: Keep it under 90 words");
+    expect(prompt).toContain("Avoid these words or phrases: synergy");
+    expect(prompt).toContain("Output language for summary and skills: German");
     expect(prompt).toContain(
       "CRITICAL: Match the Job Title from the JD exactly.",
     );
-    expect(prompt).toContain(
-      "Do NOT translate or paraphrase.",
-    );
+    expect(prompt).toContain("Do NOT translate or paraphrase.");
   });
 
   it("adds application writing strategy instructions to tailoring prompts", async () => {
@@ -533,9 +545,7 @@ describe("generateTailoring", () => {
       "Role framing: Public sector / policy / economic development (auto).",
     );
     expect(prompt).toContain("Impact and quantification rules:");
-    expect(prompt).toContain(
-      "Humanizer revision rules:",
-    );
+    expect(prompt).toContain("Humanizer revision rules:");
   });
 
   it("builds and injects a positioning plan for market intelligence health roles", async () => {
@@ -549,7 +559,7 @@ describe("generateTailoring", () => {
       ],
       experienceStrategies: [
         {
-          experienceId: "opus",
+          experienceId: "research",
           currentRisk: "May read as labour-market research only.",
           desiredFrame:
             "Sector intelligence and market opportunity research for client-ready recommendations.",
@@ -560,7 +570,9 @@ describe("generateTailoring", () => {
           ],
           deEmphasize: ["narrow labour-market terminology"],
           allowedTransferableClaims: ["analytical frameworks"],
-          forbiddenClaims: ["Do not claim direct health venture portfolio ownership."],
+          forbiddenClaims: [
+            "Do not claim direct health venture portfolio ownership.",
+          ],
         },
         {
           experienceId: "idea",
@@ -586,45 +598,42 @@ describe("generateTailoring", () => {
         },
       ],
     };
-    mockCallJsonSequenceWithPlan(
-      marsPlan,
-      {
-        success: true,
-        data: {
-          summary:
-            "Market intelligence analyst supporting venture growth through sector research, data analysis, and client-ready recommendations, with a strong interest in health innovation.",
-          headline: "Analyst, Market Intelligence - Health",
-          skills: [
-            {
-              name: "Market Intelligence & Research",
-              keywords: ["Market Research", "Market Opportunity Assessment"],
-            },
-            {
-              name: "Data Analysis & Modelling",
-              keywords: ["Excel", "Data Cleaning"],
-            },
-            {
-              name: "Client Deliverables",
-              keywords: ["PowerPoint", "Executive Reports"],
-            },
-          ],
-          experience: [
-            {
-              id: "opus",
-              bullets: [
-                "Translated sector trends and regional strategy evidence into client-ready recommendations for workforce and economic development clients.",
-              ],
-            },
-            {
-              id: "idea",
-              bullets: [
-                "Conducted startup ecosystem research to assess business needs, service gaps, partnership opportunities, and venture-support priorities.",
-              ],
-            },
-          ],
-        },
+    mockCallJsonSequenceWithPlan(marsPlan, {
+      success: true,
+      data: {
+        summary:
+          "Market intelligence analyst supporting venture growth through sector research, data analysis, and client-ready recommendations, with a strong interest in health innovation.",
+        headline: "Analyst, Market Intelligence - Health",
+        skills: [
+          {
+            name: "Market Intelligence & Research",
+            keywords: ["Market Research", "Market Opportunity Assessment"],
+          },
+          {
+            name: "Data Analysis & Modelling",
+            keywords: ["Excel", "Data Cleaning"],
+          },
+          {
+            name: "Client Deliverables",
+            keywords: ["PowerPoint", "Executive Reports"],
+          },
+        ],
+        experience: [
+          {
+            id: "research",
+            bullets: [
+              "Translated sector trends and regional strategy evidence into client-ready recommendations for workforce and economic development clients.",
+            ],
+          },
+          {
+            id: "idea",
+            bullets: [
+              "Conducted startup ecosystem research to assess business needs, service gaps, partnership opportunities, and venture-support priorities.",
+            ],
+          },
+        ],
       },
-    );
+    });
 
     const result = await generateTailoring(
       [
@@ -638,7 +647,7 @@ describe("generateTailoring", () => {
           experience: {
             items: [
               {
-                id: "opus",
+                id: "research",
                 company: "Regional Research Consultancy",
                 position: "Associate Consultant",
                 date: "2026",
@@ -713,7 +722,7 @@ describe("generateTailoring", () => {
       {
         success: true,
         data: {
-          id: "opus",
+          id: "research",
           bullets: [
             "Translated sector research into market research recommendations for stakeholders.",
           ],
@@ -759,7 +768,7 @@ describe("generateTailoring", () => {
           experience: {
             items: [
               {
-                id: "opus",
+                id: "research",
                 company: "Regional Research Consultancy",
                 position: "Associate Consultant",
                 date: "2026",
@@ -800,7 +809,7 @@ describe("generateTailoring", () => {
       {
         success: true,
         data: {
-          id: "opus",
+          id: "research",
           bullets: [
             {
               text: "Conducted labour-market and workforce development research for regional policy projects.",
@@ -838,7 +847,7 @@ describe("generateTailoring", () => {
           },
           experiencePatches: [
             {
-              id: "opus",
+              id: "research",
               bullets: [
                 "Translated labour-market, sector, and regional strategy evidence into market intelligence and business analytics recommendations for client-facing decisions.",
               ],
@@ -871,7 +880,7 @@ describe("generateTailoring", () => {
           experience: {
             items: [
               {
-                id: "opus",
+                id: "research",
                 company: "Regional Research Consultancy",
                 position: "Associate Consultant",
                 date: "2026",
@@ -916,9 +925,10 @@ describe("generateTailoring", () => {
       mustAvoidConcepts: ["workforce development"],
       experienceUse: [
         {
-          id: "opus",
+          id: "research",
           use: "primary",
-          reason: "Sector research and evidence-pack work support market intelligence framing.",
+          reason:
+            "Sector research and evidence-pack work support market intelligence framing.",
           rewriteGoal:
             "sector intelligence, market opportunity, and client-ready recommendations",
         },
@@ -951,7 +961,7 @@ describe("generateTailoring", () => {
       {
         success: true,
         data: {
-          id: "opus",
+          id: "research",
           bullets: [
             {
               text: "Translated sector trends and workforce evidence into client-ready recommendations for regional strategy clients.",
@@ -1028,7 +1038,7 @@ describe("generateTailoring", () => {
           experience: {
             items: [
               {
-                id: "opus",
+                id: "research",
                 company: "Regional Research Consultancy",
                 position: "Associate Consultant",
                 date: "2026",
@@ -1056,11 +1066,12 @@ describe("generateTailoring", () => {
 
   it("keeps skills compact and normalizes broad groups to master-style categories", async () => {
     mockCallJsonSequence({
-        success: true,
-        data: {
-          summary: "Research analyst with market research and reporting experience.",
-          headline: "Research Associate",
-          skills: [
+      success: true,
+      data: {
+        summary:
+          "Research analyst with market research and reporting experience.",
+        headline: "Research Associate",
+        skills: [
           {
             name: "Strategy & Analysis",
             keywords: ["Market Research", "Target Audience Analysis"],
@@ -1077,10 +1088,10 @@ describe("generateTailoring", () => {
             name: "Tools",
             keywords: ["Stakeholder Interviews"],
           },
-          ],
-          experience: [],
-        },
-      });
+        ],
+        experience: [],
+      },
+    });
     const profile: ResumeProfile = {
       basics: { name: "Test User", label: "Research Analyst" },
       sections: {
@@ -1131,7 +1142,9 @@ describe("generateTailoring", () => {
     expect(result.data?.skills.map((group) => group.name)).not.toEqual(
       expect.arrayContaining(["Strategy & Analysis", "Tools", "Communication"]),
     );
-    const prompt = promptContaining("Skills are compact, not a page-filling section");
+    const prompt = promptContaining(
+      "Skills are compact, not a page-filling section",
+    );
     expect(prompt).toContain("Skills are compact, not a page-filling section");
   });
 
@@ -1219,7 +1232,8 @@ describe("generateTailoring", () => {
             relativePath: "refs/Master Resume.docx",
             section: "Skills",
             roleFamily: "data_analytics_operations",
-            rawText: "Skills include Excel dashboards, data cleaning, and reporting workflows.",
+            rawText:
+              "Skills include Excel dashboards, data cleaning, and reporting workflows.",
             keywords: ["Excel", "dashboards", "data cleaning"],
           },
           {
@@ -1228,7 +1242,8 @@ describe("generateTailoring", () => {
             relativePath: "refs/Master Resume.docx",
             section: "Education",
             roleFamily: "data_analytics_operations",
-            rawText: "University coursework in econometrics and academic research methods.",
+            rawText:
+              "University coursework in econometrics and academic research methods.",
             keywords: ["coursework", "econometrics"],
           },
         ],
@@ -1270,7 +1285,8 @@ describe("generateTailoring", () => {
   it("injects only selected evidence into the tailoring prompt", async () => {
     findReferenceChunksForQualificationsMock.mockResolvedValue([
       {
-        qualification: "Experience with dashboard reporting and quality assurance.",
+        qualification:
+          "Experience with dashboard reporting and quality assurance.",
         chunks: [
           {
             id: "refs/Data Analyst Resume.docx#experience-0",
@@ -1300,9 +1316,7 @@ describe("generateTailoring", () => {
     const prompt = promptContaining("SYSTEM SELECTED EVIDENCE BANK");
     expect(prompt).toContain("SYSTEM SELECTED EVIDENCE BANK");
     expect(prompt).not.toContain("REFERENCE KNOWLEDGE HITS:");
-    expect(prompt).toContain(
-      "refs/Data Analyst Resume.docx#experience-0",
-    );
+    expect(prompt).toContain("refs/Data Analyst Resume.docx#experience-0");
     expect(prompt).toContain("Data Analyst Resume.docx > Experience");
     expect(prompt).toContain("dashboard reporting and quality assurance");
     expect(prompt).toContain("Status: selected");
@@ -1312,7 +1326,8 @@ describe("generateTailoring", () => {
   it("adds source-backed bullet bundle candidates to the tailoring prompt and trace", async () => {
     findReferenceChunksForQualificationsMock.mockResolvedValue([
       {
-        qualification: "Experience with dashboard reporting and quality assurance.",
+        qualification:
+          "Experience with dashboard reporting and quality assurance.",
         chunks: [
           {
             id: "refs/Data Analyst Resume.docx#experience-0",
@@ -1360,10 +1375,16 @@ describe("generateTailoring", () => {
     const prompt = promptContaining("EXPERIENCE BULLET BUNDLE CANDIDATES");
     expect(prompt).toContain("EXPERIENCE BULLET BUNDLE CANDIDATES");
     expect(prompt).toContain("exp-analytics:bundle:");
-    expect(prompt).toContain("sourceChunkIds: refs/Data Analyst Resume.docx#experience-0");
+    expect(prompt).toContain(
+      "sourceChunkIds: refs/Data Analyst Resume.docx#experience-0",
+    );
     expect(prompt).toContain("Treat bulletBudget as a density hint only");
-    expect(prompt).not.toContain("Generate exactly each experience bulletBudget");
-    expect(result.data?.generationTrace.bulletBundleCandidates?.length ?? 0).toBeGreaterThan(0);
+    expect(prompt).not.toContain(
+      "Generate exactly each experience bulletBudget",
+    );
+    expect(
+      result.data?.generationTrace.bulletBundleCandidates?.length ?? 0,
+    ).toBeGreaterThan(0);
   });
 
   it("groups selected evidence by source group in the tailoring prompt", async () => {
@@ -1385,7 +1406,8 @@ describe("generateTailoring", () => {
             relativePath: "refs/Dashboard Resume.docx",
             section: "Experience",
             roleFamily: "data_analytics_operations",
-            rawText: "Built recurring dashboard reporting for operations leaders.",
+            rawText:
+              "Built recurring dashboard reporting for operations leaders.",
             keywords: ["dashboard", "reporting"],
           },
         ],
@@ -1408,7 +1430,8 @@ describe("generateTailoring", () => {
             relativePath: "refs/Stakeholder Resume.docx",
             section: "Experience",
             roleFamily: "public_policy_research",
-            rawText: "Synthesized stakeholder consultation findings into briefing materials.",
+            rawText:
+              "Synthesized stakeholder consultation findings into briefing materials.",
             keywords: ["stakeholder", "briefing"],
           },
         ],
@@ -1444,7 +1467,9 @@ describe("generateTailoring", () => {
     expect(prompt).toContain("Evidence grouping rule");
     expect(dashboardIndex).toBeGreaterThanOrEqual(0);
     expect(stakeholderIndex).toBeGreaterThan(dashboardIndex);
-    expect(prompt).toContain("Requirement: req-dashboard | Dashboard reporting");
+    expect(prompt).toContain(
+      "Requirement: req-dashboard | Dashboard reporting",
+    );
     expect(prompt).toContain(
       "Requirement: req-stakeholder | Stakeholder synthesis",
     );
@@ -1487,18 +1512,16 @@ describe("generateTailoring", () => {
     const prompt = promptContaining("JD REQUIREMENTS:");
     expect(prompt).toContain("JD REQUIREMENTS:");
     expect(prompt).toContain("Required qualifications:");
-    expect(prompt).toContain(
-      "stakeholder engagement",
-    );
+    expect(prompt).toContain("stakeholder engagement");
   });
 
   it("filters unrelated skill piles and returns a short failed alignment report", async () => {
     mockCallJsonSequence({
-        success: true,
-        data: {
-          summary: "Policy and stakeholder engagement analyst.",
-          headline: "Associate, Policy and Stakeholder Engagement",
-          skills: [
+      success: true,
+      data: {
+        summary: "Policy and stakeholder engagement analyst.",
+        headline: "Associate, Policy and Stakeholder Engagement",
+        skills: [
           {
             name: "Analytics",
             keywords: ["Python", "SAS", "Power BI", "Stakeholder engagement"],
@@ -1513,9 +1536,9 @@ describe("generateTailoring", () => {
             id: "exp-1",
             bullets: ["Prepared stakeholder research and briefing materials."],
           },
-          ],
-        },
-      });
+        ],
+      },
+    });
     const profile: ResumeProfile = {
       basics: { name: "Test User", summary: "Policy researcher" },
       sections: {
@@ -1551,7 +1574,9 @@ describe("generateTailoring", () => {
       expect.arrayContaining(["Python", "SAS", "Power BI"]),
     );
     expect(result.data?.resumeAlignmentReport.status).toBe("failed");
-    expect(result.data?.resumeAlignmentReport.missingRequired.length).toBeGreaterThanOrEqual(2);
+    expect(
+      result.data?.resumeAlignmentReport.missingRequired.length,
+    ).toBeGreaterThanOrEqual(2);
   });
 
   it("runs one targeted repair pass when reference evidence can cover a qualification gap", async () => {
@@ -1598,7 +1623,8 @@ describe("generateTailoring", () => {
           verdict: "needs_patch",
           failedSections: ["summary", "experience", "coverage"],
           failedExperienceIds: ["exp-1"],
-          reason: "Reference evidence can cover presentation and coordination gaps.",
+          reason:
+            "Reference evidence can cover presentation and coordination gaps.",
           serviceFitReport: {
             ...DEFAULT_SERVICE_FIT_REPORT,
             status: "needs_review",
@@ -1668,10 +1694,14 @@ describe("generateTailoring", () => {
     expect(result.llmTrace?.map((entry) => entry.stage)).toEqual(
       expect.arrayContaining(["compact_judge", "repair_patch"]),
     );
-    expect(result.data?.summary).toContain("executive-ready stakeholder presentations");
+    expect(result.data?.summary).toContain(
+      "executive-ready stakeholder presentations",
+    );
     expect(result.data?.resumeAlignmentReport.status).toBe("pass");
     expect(result.data?.resumeAlignmentReport.autoRewriteApplied).toBe(true);
-    expect(result.data?.resumeAlignmentReport.wordingGapsAfterAutoRewrite).toEqual([]);
+    expect(
+      result.data?.resumeAlignmentReport.wordingGapsAfterAutoRewrite,
+    ).toEqual([]);
   });
 
   it("records wording gaps when the automatic rewrite still does not visibly cover evidence-backed requirements", async () => {
@@ -1745,7 +1775,8 @@ describe("generateTailoring", () => {
           verdict: "needs_patch",
           failedSections: ["experience", "coverage"],
           failedExperienceIds: ["exp-1"],
-          reason: "Patch still does not visibly cover stakeholder requirements.",
+          reason:
+            "Patch still does not visibly cover stakeholder requirements.",
           serviceFitReport: {
             ...DEFAULT_SERVICE_FIT_REPORT,
             status: "needs_review",
@@ -1785,7 +1816,9 @@ describe("generateTailoring", () => {
       expect.arrayContaining(["compact_judge", "repair_patch"]),
     );
     expect(result.data?.resumeAlignmentReport.autoRewriteApplied).toBe(true);
-    expect(result.data?.resumeAlignmentReport.wordingGapsAfterAutoRewrite).toEqual([
+    expect(
+      result.data?.resumeAlignmentReport.wordingGapsAfterAutoRewrite,
+    ).toEqual([
       "Experience gathering requirements from business stakeholders.",
     ]);
   });
@@ -1832,7 +1865,9 @@ describe("generateTailoring", () => {
     expect(prompt).toContain(
       "Domain terms allowed ONLY if JD mentions them: NOC",
     );
-    expect(prompt).toContain("Use representative references only for structure");
+    expect(prompt).toContain(
+      "Use representative references only for structure",
+    );
     expect(prompt).toContain("Representative for data_analytics_operations");
     expect(prompt).toContain("EXPERIENCE REWRITE TASK:");
     expect(prompt).toContain("exp-1");
@@ -1842,20 +1877,20 @@ describe("generateTailoring", () => {
 
   it("fills missing experience ids with gated fallback bullets", async () => {
     mockCallJsonSequence({
-        success: true,
-        data: {
-          summary:
-            "Analyst using NOC and NAICS evidence for municipal stakeholders.",
-          headline: "Data Analyst",
-          skills: [
+      success: true,
+      data: {
+        summary:
+          "Analyst using NOC and NAICS evidence for municipal stakeholders.",
+        headline: "Data Analyst",
+        skills: [
           {
             name: "Analytics",
             keywords: ["SQL", "NOC", "NAICS"],
           },
-          ],
-          experience: [],
-        },
-      });
+        ],
+        experience: [],
+      },
+    });
 
     const result = await generateTailoring(
       "Build SQL reports, Power BI dashboards, and data quality checks for operations teams.",
@@ -1871,7 +1906,7 @@ describe("generateTailoring", () => {
             items: [
               {
                 id: "exp-1",
-                company: "City of Mississauga",
+                company: "Example Municipality",
                 position: "Analyst",
                 date: "2024",
                 location: "Mississauga",
@@ -1892,9 +1927,9 @@ describe("generateTailoring", () => {
 
     expect(result.success).toBe(true);
     expect(result.data?.summary).not.toMatch(/\b(?:NOC|NAICS|municipal)\b/i);
-    expect(result.data?.skills.flatMap((group) => group.keywords).join(" ")).not.toMatch(
-      /\b(?:NOC|NAICS|municipal)\b/i,
-    );
+    expect(
+      result.data?.skills.flatMap((group) => group.keywords).join(" "),
+    ).not.toMatch(/\b(?:NOC|NAICS|municipal)\b/i);
     expect(result.data?.experience).toHaveLength(1);
     expect(result.data?.experience[0].id).toBe("exp-1");
     expect(result.data?.experience[0].bullets.join(" ")).toContain(
@@ -1907,19 +1942,19 @@ describe("generateTailoring", () => {
 
   it("fills empty generated experience bullets with fallback bullets", async () => {
     mockCallJsonSequence({
-        success: true,
-        data: {
-          summary: "Analyst supporting operational reports.",
-          headline: "Data Analyst",
-          skills: [],
-          experience: [
+      success: true,
+      data: {
+        summary: "Analyst supporting operational reports.",
+        headline: "Data Analyst",
+        skills: [],
+        experience: [
           {
             id: "exp-empty",
             bullets: ["", "   "],
           },
-          ],
-        },
-      });
+        ],
+      },
+    });
 
     const result = await generateTailoring(
       "Build SQL reports, Power BI dashboards, and data quality checks for operations teams.",
@@ -1965,19 +2000,21 @@ describe("generateTailoring", () => {
 
   it("pads under-generated experience bullets from the per-experience digest", async () => {
     mockCallJsonSequence({
-        success: true,
-        data: {
-          summary: "Analyst supporting operational reports.",
-          headline: "Data Analyst",
-          skills: [],
-          experience: [
+      success: true,
+      data: {
+        summary: "Analyst supporting operational reports.",
+        headline: "Data Analyst",
+        skills: [],
+        experience: [
           {
             id: "exp-rich",
-            bullets: ["Built Power BI dashboards for weekly operating reports."],
+            bullets: [
+              "Built Power BI dashboards for weekly operating reports.",
+            ],
           },
-          ],
-        },
-      });
+        ],
+      },
+    });
 
     const result = await generateTailoring(
       "Build SQL reports, Power BI dashboards, and data quality checks for operations teams.",
@@ -2016,23 +2053,29 @@ describe("generateTailoring", () => {
     expect(result.data?.experience[0].bullets.length).toBeGreaterThanOrEqual(4);
     expect(
       result.data?.generationTrace.experience[0].bullets?.every(
-        (item) => item.evidenceChunkIds.length > 0 || item.claimSource === "ai_generated",
+        (item) =>
+          item.evidenceChunkIds.length > 0 ||
+          item.claimSource === "ai_generated",
       ),
     ).toBe(true);
   });
 
   it("keeps experience-prefix lookup compatible when generated ids omit the prefix", async () => {
-    mockCallJsonSequence({
+    mockCallJsonSequence(
+      {
         success: true,
         data: {
-          summary: "Market intelligence analyst supporting research and reporting.",
+          summary:
+            "Market intelligence analyst supporting research and reporting.",
           headline: "Market Intelligence Analyst",
           skills: [],
           experience: [
-          {
-            id: "0",
-            bullets: ["Built market research summaries for stakeholder reporting."],
-          },
+            {
+              id: "0",
+              bullets: [
+                "Built market research summaries for stakeholder reporting.",
+              ],
+            },
           ],
         },
       },
@@ -2040,9 +2083,12 @@ describe("generateTailoring", () => {
         success: true,
         data: {
           id: "0",
-          bullets: ["Built market research summaries for stakeholder reporting."],
+          bullets: [
+            "Built market research summaries for stakeholder reporting.",
+          ],
         },
-      });
+      },
+    );
 
     const result = await generateTailoring(
       "Analyze health market trends, conduct market research, synthesize datasets, build KPI reports, and prepare executive-ready recommendations.",
@@ -2085,11 +2131,15 @@ describe("generateTailoring", () => {
     expect(contentPlan?.experienceAllocations[0]?.experienceId).toBe(
       "experience-0",
     );
-    expect(contentPlan?.experienceAllocations[0]?.bulletBudget).toBeGreaterThanOrEqual(5);
+    expect(
+      contentPlan?.experienceAllocations[0]?.bulletBudget,
+    ).toBeGreaterThanOrEqual(5);
     expect(result.data?.experience[0].id).toBe("0");
     expect(result.data?.experience[0].bullets.length).toBeGreaterThanOrEqual(4);
     expect(
-      result.data?.experience[0].bulletTrace?.some((item) => item.fallbackGenerated),
+      result.data?.experience[0].bulletTrace?.some(
+        (item) => item.fallbackGenerated,
+      ),
     ).toBe(true);
   });
 
@@ -2151,7 +2201,8 @@ describe("generateTailoring", () => {
       },
     );
 
-    const requiredText = result.data?.jdQualificationProfile.required.join(" ") ?? "";
+    const requiredText =
+      result.data?.jdQualificationProfile.required.join(" ") ?? "";
     const gapText = [
       ...(result.data?.resumeAlignmentReport.missingRequired ?? []),
       ...(result.data?.resumeAlignmentReport.partialRequired ?? []),
@@ -2159,8 +2210,12 @@ describe("generateTailoring", () => {
     ].join(" ");
     expect(requiredText).toContain("Degree in public policy");
     expect(requiredText).toContain("Experience preparing research");
-    expect(requiredText).not.toMatch(/\b(?:Hours|Wage|CUPE|Collective Agreement|pay range|Bargaining Unit)\b/i);
-    expect(gapText).not.toMatch(/\b(?:Hours|Wage|CUPE|Collective Agreement|pay range|Bargaining Unit)\b/i);
+    expect(requiredText).not.toMatch(
+      /\b(?:Hours|Wage|CUPE|Collective Agreement|pay range|Bargaining Unit)\b/i,
+    );
+    expect(gapText).not.toMatch(
+      /\b(?:Hours|Wage|CUPE|Collective Agreement|pay range|Bargaining Unit)\b/i,
+    );
     expect(result.data?.jdQualificationProfile.ignoredAdminLines).toEqual([
       "Hours",
       "Wage",
@@ -2186,16 +2241,12 @@ describe("generateTailoring", () => {
       },
     });
 
-    const prompt = promptContaining("Additional constraints: Keep it under 90 words");
-    expect(prompt).toContain(
+    const prompt = promptContaining(
       "Additional constraints: Keep it under 90 words",
     );
-    expect(prompt).not.toContain(
-      "Always respond in French",
-    );
-    expect(prompt).toContain(
-      "Output language for summary and skills: German",
-    );
+    expect(prompt).toContain("Additional constraints: Keep it under 90 words");
+    expect(prompt).not.toContain("Always respond in French");
+    expect(prompt).toContain("Output language for summary and skills: German");
   });
 
   it("uses a stored tailoring prompt template override", async () => {
@@ -2213,9 +2264,7 @@ describe("generateTailoring", () => {
     });
 
     const prompt = promptContaining("Tailor friendly German {{unknownToken}}");
-    expect(prompt).toContain(
-      "Tailor friendly German {{unknownToken}}",
-    );
+    expect(prompt).toContain("Tailor friendly German {{unknownToken}}");
   });
 
   it("includes word limit when summaryMaxWords is set", async () => {
@@ -2375,18 +2424,22 @@ describe("generateTailoring", () => {
       },
     );
 
-    const prompt = promptContaining("SECTIONED GENERATION PASS: ONE EXPERIENCE ITEM ONLY.");
+    const prompt = promptContaining(
+      "SECTIONED GENERATION PASS: ONE EXPERIENCE ITEM ONLY.",
+    );
     expect(prompt).toContain("text, claimType, supportIds");
-    expect(prompt).toContain("supportIds must name source-backed chunk ids or bundle ids");
+    expect(prompt).toContain(
+      "supportIds must name source-backed chunk ids or bundle ids",
+    );
     const request = callJsonMock.mock.calls.find(
       (call) => call[0]?.jsonSchema?.name === "resume_experience_item",
     )?.[0];
-    expect(request?.jsonSchema?.schema?.properties?.bullets?.items?.properties).toHaveProperty(
-      "claimType",
-    );
-    expect(request?.jsonSchema?.schema?.properties?.bullets?.items?.properties).toHaveProperty(
-      "supportIds",
-    );
+    expect(
+      request?.jsonSchema?.schema?.properties?.bullets?.items?.properties,
+    ).toHaveProperty("claimType");
+    expect(
+      request?.jsonSchema?.schema?.properties?.bullets?.items?.properties,
+    ).toHaveProperty("supportIds");
   });
 
   it("scopes per-experience evidence to the matching role and blocks unrelated sections", async () => {
@@ -2400,10 +2453,10 @@ describe("generateTailoring", () => {
         confidence: "high",
         chunks: [
           {
-            chunkId: "opus-exp",
-            experienceAnchorId: "opus",
-            sourceFile: "Opus Resume.docx",
-            relativePath: "refs/Opus Resume.docx",
+            chunkId: "research-exp",
+            experienceAnchorId: "research",
+            sourceFile: "Research Resume.docx",
+            relativePath: "refs/Research Resume.docx",
             section: "Experience",
             roleFamily: "market_insights_research",
             rawText:
@@ -2411,9 +2464,9 @@ describe("generateTailoring", () => {
             keywords: ["market research", "sector research"],
           },
           {
-            chunkId: "opus-edu",
-            sourceFile: "Opus Resume.docx",
-            relativePath: "refs/Opus Resume.docx",
+            chunkId: "research-edu",
+            sourceFile: "Research Resume.docx",
+            relativePath: "refs/Research Resume.docx",
             section: "Education",
             roleFamily: "market_insights_research",
             rawText:
@@ -2421,9 +2474,9 @@ describe("generateTailoring", () => {
             keywords: ["education"],
           },
           {
-            chunkId: "opus-cover",
-            sourceFile: "Opus Cover Letter.docx",
-            relativePath: "refs/Opus Cover Letter.docx",
+            chunkId: "research-cover",
+            sourceFile: "Research Cover Letter.docx",
+            relativePath: "refs/Research Cover Letter.docx",
             section: "Cover Letter",
             roleFamily: "market_insights_research",
             rawText:
@@ -2458,7 +2511,7 @@ describe("generateTailoring", () => {
             name: "Experience",
             items: [
               {
-                id: "opus",
+                id: "research",
                 company: "Regional Research Consultancy",
                 position: "Associate Consultant",
                 date: "2026",
@@ -2487,25 +2540,27 @@ describe("generateTailoring", () => {
     const prompt = String(request?.messages?.[0]?.content ?? "");
 
     expect(prompt).toContain("ALLOWED_EVIDENCE_IDS:");
-    expect(prompt).toContain("opus-exp");
-    expect(prompt).toContain("Opus Resume.docx > Experience");
-    expect(prompt).not.toContain("opus-edu");
-    expect(prompt).not.toContain("opus-cover");
+    expect(prompt).toContain("research-exp");
+    expect(prompt).toContain("Research Resume.docx > Experience");
+    expect(prompt).not.toContain("research-edu");
+    expect(prompt).not.toContain("research-cover");
     expect(prompt).not.toContain("other-exp");
     expect(prompt).not.toContain("University coursework in public policy");
     expect(prompt).not.toContain("Cover letter marketing claim");
     expect(prompt).not.toContain("Other Company built CPG category strategy");
     expect(request?.metadata).toMatchObject({
-      experienceId: "opus",
+      experienceId: "research",
       allowedChunkCount: 1,
       allowedSections: "Experience",
     });
-    expect(Number(request?.metadata?.blockedChunkCount ?? 0)).toBeGreaterThan(0);
+    expect(Number(request?.metadata?.blockedChunkCount ?? 0)).toBeGreaterThan(
+      0,
+    );
     expect(
       result.llmTrace?.find(
         (entry) =>
           entry.stage === "experience_item" &&
-          entry.metadata?.experienceId === "opus",
+          entry.metadata?.experienceId === "research",
       )?.metadata,
     ).toMatchObject({
       allowedChunkCount: 1,

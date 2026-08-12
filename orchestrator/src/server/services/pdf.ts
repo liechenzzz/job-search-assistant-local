@@ -710,7 +710,10 @@ function educationLineHasGpaOrDistinction(text: string): boolean {
 function cleanEducationDistinctionFromLine(text: string): string {
   const cleaned = text
     .replace(/\s*\([^)]*(?:gpa|high distinction)[^)]*\)/gi, "")
-    .replace(/\b(?:graduated\s+with\s+)?(?:a\s+)?(?:cumulative\s+)?gpa(?:\s+of)?\s*[:=]?\s*[0-9.]+\s*\/\s*[0-9.]+/gi, "")
+    .replace(
+      /\b(?:graduated\s+with\s+)?(?:a\s+)?(?:cumulative\s+)?gpa(?:\s+of)?\s*[:=]?\s*[0-9.]+\s*\/\s*[0-9.]+/gi,
+      "",
+    )
     .replace(/\b[0-4](?:\.\d+)?\s*\/\s*4(?:\.0+)?\b/g, "")
     .replace(/\bhigh distinction\b/gi, "")
     .replace(/[ \t]*(?:\/|\||,|;)[ \t]*(?=\t|$)/g, "")
@@ -811,9 +814,17 @@ function wordTabbedLine(
 ): string {
   return wordRunsParagraph(
     [
-      { text: left ?? "", bold: options.bold, size: options.size ?? settings.bodySize },
+      {
+        text: left ?? "",
+        bold: options.bold,
+        size: options.size ?? settings.bodySize,
+      },
       { tab: true },
-      { text: right ?? "", bold: options.bold, size: options.size ?? settings.bodySize },
+      {
+        text: right ?? "",
+        bold: options.bold,
+        size: options.size ?? settings.bodySize,
+      },
     ],
     {
       keepNext: options.keepNext ?? true,
@@ -1131,7 +1142,9 @@ export async function buildDocxPackageBuffer(
   },
 ): Promise<Buffer> {
   const targetPages =
-    (options?.resumeDecision?.targetPages ?? options?.targetPages) === 1 ? 1 : 2;
+    (options?.resumeDecision?.targetPages ?? options?.targetPages) === 1
+      ? 1
+      : 2;
   const templateBuffer = await readFile(DOCX_TEMPLATE_PATHS[targetPages]);
   const zip = await JSZip.loadAsync(templateBuffer);
   const templateDocumentXml = await zip
@@ -1167,7 +1180,9 @@ async function writeDocx(
   await writeFile(outputPath, buffer);
 }
 
-function renderHtmlEntry(entry: ReferenceResumeDocument["experience"][number]): string {
+function renderHtmlEntry(
+  entry: ReferenceResumeDocument["experience"][number],
+): string {
   return `<section class="resume-entry">
     <div class="entry-heading">
       <h3>${escapeHtml(entry.title)}</h3>
@@ -1176,9 +1191,7 @@ function renderHtmlEntry(entry: ReferenceResumeDocument["experience"][number]): 
     ${
       [entry.company, entry.location].filter(Boolean).length
         ? `<div class="entry-meta"><span>${escapeHtml(entry.company ?? "")}</span>${
-            entry.location
-              ? `<span>${escapeHtml(entry.location)}</span>`
-              : ""
+            entry.location ? `<span>${escapeHtml(entry.location)}</span>` : ""
           }</div>`
         : ""
     }

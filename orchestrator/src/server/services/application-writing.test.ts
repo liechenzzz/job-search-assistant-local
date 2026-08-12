@@ -91,9 +91,7 @@ describe("application writing strategy", () => {
     );
 
     expect(enabled).toContain("Impact and quantification rules:");
-    expect(enabled).toContain(
-      "Humanizer revision rules:",
-    );
+    expect(enabled).toContain("Humanizer revision rules:");
 
     const disabled = buildApplicationWritingInstructions(
       resolveApplicationWritingStrategy({

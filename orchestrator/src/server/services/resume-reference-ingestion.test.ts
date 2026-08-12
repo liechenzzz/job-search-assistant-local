@@ -131,9 +131,9 @@ SQL, Python, Power BI, Excel, Tableau, Quality assurance`);
         {
           fileName: "Scanned Resume.pdf",
           relativePath: "Scanned Resume.pdf",
-          contentBase64: Buffer.from("%PDF-1.4\n/Type /Page\nstream\nendstream").toString(
-            "base64",
-          ),
+          contentBase64: Buffer.from(
+            "%PDF-1.4\n/Type /Page\nstream\nendstream",
+          ).toString("base64"),
           lastModified: 100,
           size: 100,
         },
@@ -162,7 +162,9 @@ SQL Python Power BI Tableau Excel reporting dashboard analytics`.repeat(2);
           {
             fileName: "Analytics Resume.pdf",
             relativePath: "Analytics Resume.pdf",
-            contentBase64: Buffer.from("%PDF-1.4\n/Type /Page\n").toString("base64"),
+            contentBase64: Buffer.from("%PDF-1.4\n/Type /Page\n").toString(
+              "base64",
+            ),
             lastModified: 100,
             size: 100,
           },
@@ -172,7 +174,8 @@ SQL Python Power BI Tableau Excel reporting dashboard analytics`.repeat(2);
       {
         runCommand: async (command) => {
           commands.push(command);
-          if (command === "pdftotext") return { stdout: popplerText, stderr: "" };
+          if (command === "pdftotext")
+            return { stdout: popplerText, stderr: "" };
           throw new Error(`Unexpected command: ${command}`);
         },
       },
@@ -193,7 +196,9 @@ Policy and data analyst with stakeholder engagement, research, reporting, briefi
 Experience
 Led research synthesis, Excel quality assurance, and stakeholder reporting workflows for public sector planning decisions.
 Skills
-Research Excel Power BI stakeholder engagement policy analysis reporting`.repeat(2);
+Research Excel Power BI stakeholder engagement policy analysis reporting`.repeat(
+      2,
+    );
 
     const scan = await ingestResumeReferenceFiles(
       {
@@ -242,9 +247,9 @@ Research Excel Power BI stakeholder engagement policy analysis reporting`.repeat
           {
             fileName: "Scanned Resume.pdf",
             relativePath: "Scanned Resume.pdf",
-            contentBase64: Buffer.from("%PDF-1.4\n/Type /Page\nstream\nendstream").toString(
-              "base64",
-            ),
+            contentBase64: Buffer.from(
+              "%PDF-1.4\n/Type /Page\nstream\nendstream",
+            ).toString("base64"),
             lastModified: 100,
             size: 100,
           },

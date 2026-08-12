@@ -1,11 +1,11 @@
 import type { JobListItem } from "@shared/types.js";
-import { cn } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface JobRowContentProps {
   job: JobListItem;
@@ -94,7 +94,9 @@ export const JobRowContent = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="shrink-0 cursor-default text-right">
-                  <span className="text-[10px] text-muted-foreground/50">Fit </span>
+                  <span className="text-[10px] text-muted-foreground/50">
+                    Fit{" "}
+                  </span>
                   <span className={cn("text-xs tabular-nums", suitabilityTone)}>
                     {job.suitabilityScore}
                   </span>
@@ -109,7 +111,9 @@ export const JobRowContent = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="shrink-0 cursor-default text-right">
-                  <span className="text-[10px] text-muted-foreground/50">Match </span>
+                  <span className="text-[10px] text-muted-foreground/50">
+                    Match{" "}
+                  </span>
                   <span
                     className={cn(
                       "text-xs tabular-nums",
@@ -126,7 +130,8 @@ export const JobRowContent = ({
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs">
                 <p className="text-xs">
-                  Resume-JD match — {alignmentLabel(alignment.status)} · {alignment.score}%
+                  Resume-JD match — {alignmentLabel(alignment.status)} ·{" "}
+                  {alignment.score}%
                 </p>
               </TooltipContent>
             </Tooltip>

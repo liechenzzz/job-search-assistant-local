@@ -80,7 +80,7 @@ describe("buildResumeCoveragePlan", () => {
       },
       resumeSections: {
         education:
-          "University of Toronto Bachelor of Arts, City Studies and Media Studies. Master of Urban Innovation.",
+          "Example University Bachelor of Arts, Social Science. Master of Public Policy.",
         experience:
           "Conducted market research, statistics analysis, business analysis, and economic research for municipal projects.",
       },
@@ -104,7 +104,7 @@ describe("buildResumeCoveragePlan", () => {
       },
       resumeSections: {
         education:
-          "University of Toronto Bachelor of Arts, City Studies and Media Studies. Master of Urban Innovation.",
+          "Example University Bachelor of Arts, Social Science. Master of Public Policy.",
         experience:
           "Conducted statistics analysis and economics research for business planning projects.",
       },

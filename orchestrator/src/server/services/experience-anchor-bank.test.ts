@@ -1,5 +1,8 @@
+import type {
+  ResumeReferenceChunk,
+  ResumeReferenceScanItem,
+} from "@shared/types";
 import { describe, expect, it } from "vitest";
-import type { ResumeReferenceChunk, ResumeReferenceScanItem } from "@shared/types";
 import { buildExperienceAnchorBank } from "./experience-anchor-bank";
 
 const item = (suffix: string): ResumeReferenceScanItem => ({
@@ -61,7 +64,11 @@ describe("experience anchor bank", () => {
     expect(result.anchors).toHaveLength(1);
     expect(result.anchors[0].identity.company).toContain("Analytics Team");
     expect(result.anchors[0].sourceChunkIds).toHaveLength(2);
-    expect(result.anchors[0].toolsAndMethods.some((fact) => /Power BI/i.test(fact.text))).toBe(true);
+    expect(
+      result.anchors[0].toolsAndMethods.some((fact) =>
+        /Power BI/i.test(fact.text),
+      ),
+    ).toBe(true);
     expect(result.anchors[0].measurableOutcomes.length).toBeGreaterThan(0);
     expect(result.chunks.every((entry) => entry.experienceAnchorId)).toBe(true);
   });

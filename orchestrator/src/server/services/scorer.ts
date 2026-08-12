@@ -3,11 +3,11 @@
  */
 
 import { logger } from "@infra/logger";
-import { getDefaultPromptTemplate } from "@shared/prompt-template-definitions.js";
 import {
   buildJdQualificationProfile,
   buildJdQualificationProfileInstructions,
 } from "@shared/jd-qualification-profile.js";
+import { getDefaultPromptTemplate } from "@shared/prompt-template-definitions.js";
 import type { JdQualificationProfile, Job } from "@shared/types";
 import type { JsonSchemaDefinition } from "./llm/types";
 import { stripMarkdownCodeFences } from "./llm/utils/json";

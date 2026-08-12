@@ -1,9 +1,9 @@
-import type { JobListItem, JobSource } from "@shared/types";
 import {
   getDeadlineUrgency,
   getDiscoveryAgeTier,
   isDiscoveryActionQueueCandidate,
 } from "@shared/job-lifecycle";
+import type { JobListItem, JobSource } from "@shared/types";
 import { useMemo } from "react";
 import type {
   DateFilterDimension,
@@ -128,7 +128,9 @@ export const useFilteredJobs = (
         ? { ...sort, datePriority: getDatePriority(dateFilter.dimensions) }
         : sort;
 
-    const sorted = [...filtered].sort((a, b) => compareJobs(a, b, effectiveSort));
+    const sorted = [...filtered].sort((a, b) =>
+      compareJobs(a, b, effectiveSort),
+    );
     if (
       activeTab === "discovered" &&
       discoveryAgeFilter === "action_queue" &&

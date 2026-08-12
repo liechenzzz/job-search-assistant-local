@@ -376,9 +376,11 @@ describe("JobDetailPanel", () => {
       onJobUpdated,
     });
 
-    const onePageButton = (await screen.findAllByRole("button", {
-      name: /generate 1 page/i,
-    }))[0];
+    const onePageButton = (
+      await screen.findAllByRole("button", {
+        name: /generate 1 page/i,
+      })
+    )[0];
     expect(
       screen.getAllByRole("button", { name: /generate 2 pages/i })[0],
     ).toBeInTheDocument();
@@ -534,7 +536,9 @@ describe("JobDetailPanel", () => {
     expect(screen.getByText(/1 weak\/no evidence/i)).toBeInTheDocument();
     expect(screen.getByText("Build Power BI dashboards")).toBeInTheDocument();
     expect(screen.getByText("Grant writing")).toBeInTheDocument();
-    expect(screen.getByText(/sources: resume.docx > Experience/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/sources: resume.docx > Experience/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("Content allocation")).toBeInTheDocument();
     expect(screen.getAllByText(/5 bullets/i).length).toBeGreaterThan(0);
     expect(screen.getByText("Experience digests")).toBeInTheDocument();

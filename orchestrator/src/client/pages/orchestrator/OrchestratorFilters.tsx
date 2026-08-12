@@ -46,9 +46,9 @@ import type {
 import {
   dateFilterDimensionLabels,
   dateFilterDimensionOrder,
+  defaultSortDirection,
   discoveryAgeFilterLabels,
   discoveryAgeFilterOrder,
-  defaultSortDirection,
   orderedFilterSources,
   tabs,
 } from "./constants";
@@ -389,9 +389,7 @@ export const OrchestratorFilters: React.FC<OrchestratorFiltersProps> = ({
                                   ? "default"
                                   : "outline"
                               }
-                              onClick={() =>
-                                onDiscoveryAgeFilterChange(option)
-                              }
+                              onClick={() => onDiscoveryAgeFilterChange(option)}
                             >
                               {discoveryAgeFilterLabels[option]}
                             </Button>

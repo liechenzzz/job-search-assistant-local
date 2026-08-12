@@ -206,7 +206,7 @@ describe("generateFramingCandidates", () => {
     const input = makeMinimalInput({
       experienceAnchors: [
         {
-          experienceAnchorId: "anchor_opus",
+          experienceAnchorId: "anchor_research",
           identity: {
             company: "Regional Research Consultancy",
             title: "Research Analyst",
@@ -236,9 +236,9 @@ describe("generateFramingCandidates", () => {
           version: 1,
         },
         {
-          experienceAnchorId: "anchor_idea",
+          experienceAnchorId: "anchor_program",
           identity: {
-            company: "IDEA",
+            company: "Community Innovation Program",
             title: "Project Coordinator",
             roleAliases: [],
           },
@@ -282,21 +282,22 @@ describe("generateFramingCandidates", () => {
     const result = generateFramingCandidates(input);
 
     // "market intelligence" from JD → should appear for both experiences
-    const opusCandidates = result.activationCandidates.filter(
+    const researchCandidates = result.activationCandidates.filter(
       (c) =>
-        c.experienceId === "anchor_opus" && c.text === "market intelligence",
+        c.experienceId === "anchor_research" &&
+        c.text === "market intelligence",
     );
-    const ideaCandidates = result.activationCandidates.filter(
+    const programCandidates = result.activationCandidates.filter(
       (c) =>
-        c.experienceId === "anchor_idea" && c.text === "market intelligence",
+        c.experienceId === "anchor_program" && c.text === "market intelligence",
     );
-    expect(opusCandidates.length).toBeGreaterThanOrEqual(1);
-    expect(ideaCandidates.length).toBeGreaterThanOrEqual(1);
+    expect(researchCandidates.length).toBeGreaterThanOrEqual(1);
+    expect(programCandidates.length).toBeGreaterThanOrEqual(1);
 
     // Both should be tagged as jd_phrase source with the same jdPhrase
-    if (opusCandidates[0]) {
-      expect(opusCandidates[0].source).toBe("jd_phrase");
-      expect(opusCandidates[0].jdPhrase).toBe("market intelligence");
+    if (researchCandidates[0]) {
+      expect(researchCandidates[0].source).toBe("jd_phrase");
+      expect(researchCandidates[0].jdPhrase).toBe("market intelligence");
     }
   });
 
@@ -359,11 +360,11 @@ describe("extractClaims", () => {
     const result = {
       decisions: [],
       activeFramingsByExperience: {
-        "exp-opus": [
+        "exp-research": [
           {
             framing: "market intelligence",
             claimScope: "framing" as const,
-            experienceId: "exp-opus",
+            experienceId: "exp-research",
             requirementIds: [],
             legality: "allowed" as const,
             relevantToCurrentJd: true,
@@ -375,11 +376,11 @@ describe("extractClaims", () => {
         ],
       },
       blockedByExperience: {
-        "exp-opus": [
+        "exp-research": [
           {
             framing: "healthcare startups",
             claimScope: "audience" as const,
-            experienceId: "exp-opus",
+            experienceId: "exp-research",
             requirementIds: [],
             legality: "blocked" as const,
             relevantToCurrentJd: false,
@@ -436,11 +437,11 @@ describe("extractClaims", () => {
     const result = {
       decisions: [],
       activeFramingsByExperience: {
-        "exp-opus": [
+        "exp-research": [
           {
             framing: "market intelligence",
             claimScope: "framing" as const,
-            experienceId: "exp-opus",
+            experienceId: "exp-research",
             requirementIds: [],
             legality: "allowed" as const,
             relevantToCurrentJd: true,
@@ -452,11 +453,11 @@ describe("extractClaims", () => {
         ],
       },
       blockedByExperience: {
-        "exp-opus": [
+        "exp-research": [
           {
             framing: "healthcare startups",
             claimScope: "audience" as const,
-            experienceId: "exp-opus",
+            experienceId: "exp-research",
             requirementIds: [],
             legality: "blocked" as const,
             relevantToCurrentJd: false,
@@ -476,7 +477,7 @@ describe("extractClaims", () => {
     const claims = extractClaims(
       "Conducted market intelligence for healthcare startups.",
       result as any,
-      "exp-opus",
+      "exp-research",
     );
     const repairResult = repairBlockedClaims(
       "Conducted market intelligence for healthcare startups.",
@@ -493,11 +494,11 @@ describe("extractClaims", () => {
       decisions: [],
       activeFramingsByExperience: {},
       blockedByExperience: {
-        "exp-opus": [
+        "exp-research": [
           {
             framing: "TAM sizing",
             claimScope: "framing" as const,
-            experienceId: "exp-opus",
+            experienceId: "exp-research",
             requirementIds: [],
             legality: "blocked" as const,
             relevantToCurrentJd: false,
@@ -509,7 +510,7 @@ describe("extractClaims", () => {
           {
             framing: "investment thesis",
             claimScope: "framing" as const,
-            experienceId: "exp-opus",
+            experienceId: "exp-research",
             requirementIds: [],
             legality: "blocked" as const,
             relevantToCurrentJd: false,
@@ -528,7 +529,7 @@ describe("extractClaims", () => {
 
     const bullet =
       "Led TAM sizing and investment thesis analysis using sector data for clients.";
-    const claims = extractClaims(bullet, result as any, "exp-opus");
+    const claims = extractClaims(bullet, result as any, "exp-research");
     const repairResult = repairBlockedClaims(bullet, claims);
     expect(repairResult.repairMode).toBe("targeted");
     expect(repairResult.repaired).not.toContain("TAM sizing");
@@ -657,11 +658,11 @@ describe("extractClaims", () => {
       decisions: [],
       activeFramingsByExperience: {},
       blockedByExperience: {
-        "exp-opus": [
+        "exp-research": [
           {
             framing: "healthcare startups",
             claimScope: "audience" as const,
-            experienceId: "exp-opus",
+            experienceId: "exp-research",
             requirementIds: [],
             legality: "blocked" as const,
             relevantToCurrentJd: false,
@@ -680,7 +681,7 @@ describe("extractClaims", () => {
 
     const bullet =
       "Analyzed market trends for public-sector stakeholders and healthcare startups.";
-    const claims = extractClaims(bullet, result as any, "exp-opus");
+    const claims = extractClaims(bullet, result as any, "exp-research");
     const repairResult = repairBlockedClaims(bullet, claims);
 
     // Must keep the allowed "public-sector stakeholders"

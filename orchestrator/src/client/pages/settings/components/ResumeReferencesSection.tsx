@@ -14,7 +14,9 @@ import { cn } from "@/lib/utils";
 import { SettingsSectionFrame } from "./SettingsSectionFrame";
 
 type ResumeReferenceItem = ResumeReferenceScanResult["items"][number];
-type ResumeReferenceChunk = NonNullable<ResumeReferenceScanResult["chunks"]>[number];
+type ResumeReferenceChunk = NonNullable<
+  ResumeReferenceScanResult["chunks"]
+>[number];
 type ResumeReferenceRepresentative = NonNullable<
   ResumeReferenceScanResult["representatives"]
 >[number];
@@ -200,9 +202,9 @@ function detectSections(text: string): string[] {
 }
 
 function extractKeywords(text: string): string[] {
-  const found = KEYWORD_PATTERNS.filter(([, pattern]) => pattern.test(text)).map(
-    ([label]) => label,
-  );
+  const found = KEYWORD_PATTERNS.filter(([, pattern]) =>
+    pattern.test(text),
+  ).map(([label]) => label);
   const acronyms = text.match(/\b[A-Z]{2,6}\b/g) ?? [];
   return Array.from(new Set([...found, ...acronyms])).slice(0, 30);
 }
@@ -212,17 +214,14 @@ function countPdfPages(text: string): number | null {
 }
 
 function cleanText(text: string): string {
-  return text
-    .replace(/\s+/g, " ")
-    .replace(/\u0000/g, "")
-    .trim();
+  return text.replace(/\s+/g, " ").replaceAll("\0", "").trim();
 }
 
 function cleanLineText(text: string): string {
   return text
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
-    .replace(/\u0000/g, "")
+    .replaceAll("\0", "")
     .trim();
 }
 
@@ -276,13 +275,17 @@ function extractReferenceSnippets(
   if (kind === "cover") {
     const reLine = normalized.match(/\bRe:\s*[^.]{1,180}/i)?.[0] ?? "";
     return {
-      coverLetter: clip([normalized.slice(0, 500), reLine].filter(Boolean).join(" "), 800),
+      coverLetter: clip(
+        [normalized.slice(0, 500), reLine].filter(Boolean).join(" "),
+        800,
+      ),
     };
   }
 
   const summaryMatch =
-    normalized.match(/\b(?:summary|profile|objective)\b[:\s-]+(.{80,500})/i)?.[1] ??
-    normalized.slice(0, 420);
+    normalized.match(
+      /\b(?:summary|profile|objective)\b[:\s-]+(.{80,500})/i,
+    )?.[1] ?? normalized.slice(0, 420);
   const bulletMatches = Array.from(
     text.matchAll(/(?:^|\n|•|-|\*)\s*([A-Z][^\n]{45,220})/g),
   )
@@ -313,18 +316,31 @@ async function extractDocxText(file: File): Promise<string> {
     .trim();
 }
 
-function createChunkId(relativePath: string, section: string, index: number): string {
+function createChunkId(
+  relativePath: string,
+  section: string,
+  index: number,
+): string {
   return `${relativePath}#${section.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index}`;
 }
 
 const SECTION_HEADING_PATTERNS: Array<[string, RegExp]> = [
-  ["Summary", /^(?:summary|professional summary|profile|professional profile|objective)$/i],
-  ["Skills", /^(?:skills|technical skills|core competencies|key skills|competencies)$/i],
+  [
+    "Summary",
+    /^(?:summary|professional summary|profile|professional profile|objective)$/i,
+  ],
+  [
+    "Skills",
+    /^(?:skills|technical skills|core competencies|key skills|competencies)$/i,
+  ],
   [
     "Experience",
     /^(?:experience|professional experience|work experience|work history|employment history|relevant experience)$/i,
   ],
-  ["Projects", /^(?:projects|selected projects|portfolio|project experience)$/i],
+  [
+    "Projects",
+    /^(?:projects|selected projects|portfolio|project experience)$/i,
+  ],
   [
     "Education",
     /^(?:education|academic|academic background|education and credentials|education & credentials)$/i,
@@ -414,9 +430,9 @@ export function buildReferenceChunks(
       .split(/\n{2,}|(?=\bRe:\s*)/i)
       .map(cleanText)
       .filter((line) => line.length >= 40);
-    paragraphs.forEach((paragraph, index) =>
-      pushChunk(index === 0 ? "Cover Opening" : "Cover Letter", paragraph),
-    );
+    paragraphs.forEach((paragraph, index) => {
+      pushChunk(index === 0 ? "Cover Opening" : "Cover Letter", paragraph);
+    });
     return chunks;
   }
 
@@ -549,7 +565,9 @@ async function inspectFile(file: File): Promise<{
   };
 }
 
-function buildCoverage(items: ResumeReferenceItem[]): ResumeReferenceScanResult["coverage"] {
+function buildCoverage(
+  items: ResumeReferenceItem[],
+): ResumeReferenceScanResult["coverage"] {
   return items.reduce<Record<string, number>>((coverage, item) => {
     coverage[item.inferredRole] = (coverage[item.inferredRole] ?? 0) + 1;
     return coverage;
@@ -564,8 +582,14 @@ function referenceIdentity(item: ResumeReferenceItem): string {
   return item.relativePath;
 }
 
-function sortNewestFirst(a: ResumeReferenceItem, b: ResumeReferenceItem): number {
-  return (b.lastModified ?? 0) - (a.lastModified ?? 0) || a.fileName.localeCompare(b.fileName);
+function sortNewestFirst(
+  a: ResumeReferenceItem,
+  b: ResumeReferenceItem,
+): number {
+  return (
+    (b.lastModified ?? 0) - (a.lastModified ?? 0) ||
+    a.fileName.localeCompare(b.fileName)
+  );
 }
 
 export function getResumeReferenceIndexNotice(
@@ -602,7 +626,10 @@ export function getResumeReferenceIndexNotice(
     };
   }
   const indexedAt = Date.parse(scan.lastIndexedAt ?? scan.scannedAt);
-  if (Number.isFinite(indexedAt) && now - indexedAt > REFERENCE_INDEX_STALE_MS) {
+  if (
+    Number.isFinite(indexedAt) &&
+    now - indexedAt > REFERENCE_INDEX_STALE_MS
+  ) {
     return {
       tone: "warning",
       message:
@@ -640,7 +667,9 @@ export async function saveConfirmedResumeReferenceScan(
 }
 
 function formatSaveError(error: unknown): string {
-  return error instanceof Error ? error.message : "Reference scan was not saved.";
+  return error instanceof Error
+    ? error.message
+    : "Reference scan was not saved.";
 }
 
 function pickRepresentativeResume(
@@ -654,9 +683,14 @@ function pickRepresentativeResume(
     roleFamily === "consulting_strategy"
       ? candidates.filter((item) => item.pageCount === 1)
       : roleFamily === "public_sector_policy_economic_development"
-        ? candidates.filter((item) => item.pageCount === null || item.pageCount >= 2)
+        ? candidates.filter(
+            (item) => item.pageCount === null || item.pageCount >= 2,
+          )
         : candidates;
-  return [...(preferred.length ? preferred : candidates)].sort(sortNewestFirst)[0] ?? null;
+  return (
+    [...(preferred.length ? preferred : candidates)].sort(sortNewestFirst)[0] ??
+    null
+  );
 }
 
 function pickRepresentativeCover(
@@ -683,7 +717,9 @@ export function buildRepresentatives(
       resume: pickRepresentativeResume(items, roleFamily),
       coverLetter: pickRepresentativeCover(items, roleFamily),
     }))
-    .filter((representative) => representative.resume || representative.coverLetter);
+    .filter(
+      (representative) => representative.resume || representative.coverLetter,
+    );
 }
 
 export function buildWritingGuide(
@@ -780,9 +816,9 @@ function summarize(
   };
 }
 
-export const ResumeReferencesSection: React.FC<{ layoutMode?: "accordion" | "panel" }> = ({
-  layoutMode = "accordion",
-}) => {
+export const ResumeReferencesSection: React.FC<{
+  layoutMode?: "accordion" | "panel";
+}> = ({ layoutMode = "accordion" }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [scan, setScan] = useState<ResumeReferenceScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -814,7 +850,9 @@ export const ResumeReferencesSection: React.FC<{ layoutMode?: "accordion" | "pan
     setIsScanning(true);
     try {
       try {
-        const ingestFiles = await Promise.all(Array.from(files).map(toIngestFile));
+        const ingestFiles = await Promise.all(
+          Array.from(files).map(toIngestFile),
+        );
         const readback = await api.ingestResumeReferenceFiles({
           files: ingestFiles,
         });
@@ -826,7 +864,7 @@ export const ResumeReferencesSection: React.FC<{ layoutMode?: "accordion" | "pan
               (diagnostics.chunkCount || 0) /
                 Math.max(0.0001, 1 - diagnostics.duplicateChunkRatio),
             )
-          : readback.chunkCount ?? 0;
+          : (readback.chunkCount ?? 0);
         const deduped = Math.max(0, rawChunkCount - (readback.chunkCount ?? 0));
         const truncated = readback.truncatedChunks ?? 0;
         if (readback.indexStatus === "indexed") {
@@ -926,8 +964,9 @@ export const ResumeReferencesSection: React.FC<{ layoutMode?: "accordion" | "pan
           ref={(node) => {
             inputRef.current = node;
             if (node) {
-              (node as HTMLInputElement & { webkitdirectory?: boolean }).webkitdirectory =
-                true;
+              (
+                node as HTMLInputElement & { webkitdirectory?: boolean }
+              ).webkitdirectory = true;
             }
           }}
           type="file"
@@ -953,12 +992,14 @@ export const ResumeReferencesSection: React.FC<{ layoutMode?: "accordion" | "pan
             ) : null}
 
             <div className="grid gap-2 sm:grid-cols-4">
-              {([
-                ["Resumes", scan.resumeCount],
-                ["Cover letters", scan.coverLetterCount],
-                ["Combined", scan.combinedCount],
-                ["Indexed files", scan.activeCount ?? scan.items.length],
-              ] satisfies Array<[string, number]>).map(([label, value]) => (
+              {(
+                [
+                  ["Resumes", scan.resumeCount],
+                  ["Cover letters", scan.coverLetterCount],
+                  ["Combined", scan.combinedCount],
+                  ["Indexed files", scan.activeCount ?? scan.items.length],
+                ] satisfies Array<[string, number]>
+              ).map(([label, value]) => (
                 <div
                   key={label}
                   className="rounded-md border border-border/35 bg-background/30 px-3 py-2"
@@ -974,19 +1015,24 @@ export const ResumeReferencesSection: React.FC<{ layoutMode?: "accordion" | "pan
             </div>
 
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              {([
-                ["Last scan", new Date(scan.scannedAt).toLocaleString()],
+              {(
                 [
-                  "Last indexed",
-                  scan.lastIndexedAt
-                    ? new Date(scan.lastIndexedAt).toLocaleString()
-                    : "Not indexed",
-                ],
-                ["Indexed chunks", String(scan.chunkCount ?? 0)],
-                ["Index status", scan.indexStatus ?? "not_indexed"],
-                ["Added", String(scan.changeSummary?.added ?? 0)],
-                ["Updated/removed", `${scan.changeSummary?.updated ?? 0}/${scan.changeSummary?.removed ?? 0}`],
-              ] satisfies Array<[string, string]>).map(([label, value]) => (
+                  ["Last scan", new Date(scan.scannedAt).toLocaleString()],
+                  [
+                    "Last indexed",
+                    scan.lastIndexedAt
+                      ? new Date(scan.lastIndexedAt).toLocaleString()
+                      : "Not indexed",
+                  ],
+                  ["Indexed chunks", String(scan.chunkCount ?? 0)],
+                  ["Index status", scan.indexStatus ?? "not_indexed"],
+                  ["Added", String(scan.changeSummary?.added ?? 0)],
+                  [
+                    "Updated/removed",
+                    `${scan.changeSummary?.updated ?? 0}/${scan.changeSummary?.removed ?? 0}`,
+                  ],
+                ] satisfies Array<[string, string]>
+              ).map(([label, value]) => (
                 <div
                   key={label}
                   className="rounded-md border border-border/35 bg-background/20 px-3 py-2"
@@ -1007,37 +1053,46 @@ export const ResumeReferencesSection: React.FC<{ layoutMode?: "accordion" | "pan
                   Server ingestion diagnostics
                 </div>
                 <div className="mt-2 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-                  {([
+                  {(
                     [
-                      "Parsed files",
-                      `${scan.ingestionDiagnostics.parsedFiles}/${scan.ingestionDiagnostics.totalFiles}`,
-                    ],
-                    ["Clusters", String(scan.ingestionDiagnostics.clusterCount)],
-                    [
-                      "Duplicate ratio",
-                      `${Math.round(scan.ingestionDiagnostics.duplicateChunkRatio * 100)}%`,
-                    ],
-                    [
-                      "Weak text",
-                      String(scan.ingestionDiagnostics.lowQualityFiles.length),
-                    ],
-                    [
-                      "OCR used",
-                      String(scan.ingestionDiagnostics.ocrFileCount ?? 0),
-                    ],
-                    [
-                      "Partial OCR",
-                      String(scan.ingestionDiagnostics.partialOcrFileCount ?? 0),
-                    ],
-                    [
-                      "Empty text",
-                      String(scan.ingestionDiagnostics.emptyTextFiles.length),
-                    ],
-                    [
-                      "Skipped",
-                      String(scan.ingestionDiagnostics.skippedFiles.length),
-                    ],
-                  ] satisfies Array<[string, string]>).map(([label, value]) => (
+                      [
+                        "Parsed files",
+                        `${scan.ingestionDiagnostics.parsedFiles}/${scan.ingestionDiagnostics.totalFiles}`,
+                      ],
+                      [
+                        "Clusters",
+                        String(scan.ingestionDiagnostics.clusterCount),
+                      ],
+                      [
+                        "Duplicate ratio",
+                        `${Math.round(scan.ingestionDiagnostics.duplicateChunkRatio * 100)}%`,
+                      ],
+                      [
+                        "Weak text",
+                        String(
+                          scan.ingestionDiagnostics.lowQualityFiles.length,
+                        ),
+                      ],
+                      [
+                        "OCR used",
+                        String(scan.ingestionDiagnostics.ocrFileCount ?? 0),
+                      ],
+                      [
+                        "Partial OCR",
+                        String(
+                          scan.ingestionDiagnostics.partialOcrFileCount ?? 0,
+                        ),
+                      ],
+                      [
+                        "Empty text",
+                        String(scan.ingestionDiagnostics.emptyTextFiles.length),
+                      ],
+                      [
+                        "Skipped",
+                        String(scan.ingestionDiagnostics.skippedFiles.length),
+                      ],
+                    ] satisfies Array<[string, string]>
+                  ).map(([label, value]) => (
                     <div
                       key={label}
                       className="rounded-md border border-border/30 bg-muted/10 px-3 py-2"
@@ -1053,34 +1108,35 @@ export const ResumeReferencesSection: React.FC<{ layoutMode?: "accordion" | "pan
                 </div>
                 {scan.ingestionDiagnostics.extractorCounts ? (
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {Object.entries(scan.ingestionDiagnostics.extractorCounts).map(
-                      ([extractor, count]) => (
-                        <Badge
-                          key={extractor}
-                          variant="secondary"
-                          className="rounded-md text-[11px]"
-                        >
-                          {extractor}: {count}
-                        </Badge>
-                      ),
-                    )}
+                    {Object.entries(
+                      scan.ingestionDiagnostics.extractorCounts,
+                    ).map(([extractor, count]) => (
+                      <Badge
+                        key={extractor}
+                        variant="secondary"
+                        className="rounded-md text-[11px]"
+                      >
+                        {extractor}: {count}
+                      </Badge>
+                    ))}
                   </div>
                 ) : null}
                 {scan.ingestionDiagnostics.missingDependencies?.length ? (
                   <div className="mt-2 rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
                     Missing local extraction tools:{" "}
                     {scan.ingestionDiagnostics.missingDependencies.join(", ")}.
-                    Docker installs these automatically; local Windows scans will
-                    use lightweight fallback until those tools are installed.
+                    Docker installs these automatically; local Windows scans
+                    will use lightweight fallback until those tools are
+                    installed.
                   </div>
                 ) : null}
                 {scan.ingestionDiagnostics.lowQualityFiles.length ||
                 scan.ingestionDiagnostics.emptyTextFiles.length ? (
                   <div className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                    Files with weak or empty extracted text may be scanned PDFs or
-                    heavily compressed documents. They are saved in diagnostics
-                    so the backend can be upgraded to OCR/Poppler without
-                    changing the resume generation flow.
+                    Files with weak or empty extracted text may be scanned PDFs
+                    or heavily compressed documents. They are saved in
+                    diagnostics so the backend can be upgraded to OCR/Poppler
+                    without changing the resume generation flow.
                   </div>
                 ) : null}
               </div>
@@ -1119,7 +1175,8 @@ export const ResumeReferencesSection: React.FC<{ layoutMode?: "accordion" | "pan
                         Resume: {representative.resume?.fileName ?? "Not found"}
                       </div>
                       <div className="truncate text-muted-foreground">
-                        Cover: {representative.coverLetter?.fileName ?? "Not found"}
+                        Cover:{" "}
+                        {representative.coverLetter?.fileName ?? "Not found"}
                       </div>
                     </div>
                   ))}
@@ -1146,7 +1203,9 @@ export const ResumeReferencesSection: React.FC<{ layoutMode?: "accordion" | "pan
                   </div>
                   <div className="text-muted-foreground">{item.kind}</div>
                   <div className="truncate text-muted-foreground">
-                    {item.sections.length ? item.sections.join(", ") : "No sections found"}
+                    {item.sections.length
+                      ? item.sections.join(", ")
+                      : "No sections found"}
                   </div>
                 </div>
               ))}

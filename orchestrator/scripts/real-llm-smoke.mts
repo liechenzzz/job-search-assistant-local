@@ -6,7 +6,10 @@
  * so you can verify: claim extraction, repair, fallback, positioning.
  */
 import "dotenv/config";
-import { resolveLlmModel, createConfiguredLlmService } from "../src/server/services/modelSelection.js";
+import {
+  createConfiguredLlmService,
+  resolveLlmModel,
+} from "../src/server/services/modelSelection.js";
 import { generateTailoring } from "../src/server/services/summary.js";
 
 const JD = [
@@ -41,17 +44,14 @@ const PROFILE = {
           id: "experience-research-consultancy",
           company: "Regional Research Consultancy",
           position: "Research Analyst / Consultant",
-          location: "Toronto",
+          location: "Ontario",
           date: "2025 — Present",
           summary: [
-            "Conducted applied labour-market and policy research across Durham,",
-            "Waterloo, and Northwestern Ontario. Analysed Job Bank, Statistics",
-            "Canada RTRA, and occupational outlook data to compare demand patterns,",
-            "wage levels, and sector trends across regions. Reviewed 35+ regional",
-            "strategies and policy documents. Prepared evidence packs and briefing",
-            "materials for municipal and public-sector clients. Supported workforce",
-            "development and sector prioritization projects with quantitative",
-            "analysis and stakeholder engagement.",
+            "Conducted applied market and policy research for regional clients.",
+            "Analysed public labour-market datasets to compare demand patterns,",
+            "wage levels, and sector trends. Prepared evidence packs and briefing",
+            "materials for public-sector clients and supported prioritization",
+            "projects with quantitative analysis and stakeholder engagement.",
           ].join(" "),
           visible: true,
         },
@@ -59,10 +59,10 @@ const PROFILE = {
           id: "experience-innovation-hub",
           company: "Municipal Innovation Hub",
           position: "Project Coordinator",
-          location: "Mississauga",
+          location: "Ontario",
           date: "2024 — 2025",
           summary: [
-            "Supported innovation ecosystem programs for the City of Mississauga.",
+            "Supported a municipal innovation ecosystem program.",
             "Coordinated stakeholder workshops and roundtables with entrepreneurs,",
             "municipal staff, and ecosystem partners. Prepared program reports,",
             "communications materials, and KPI dashboards.",
@@ -83,7 +83,9 @@ async function main() {
 
   const llm = await createConfiguredLlmService();
   if (!llm) {
-    console.error("ERROR: No LLM service configured. Set LLM_PROVIDER + LLM_API_KEY in .env");
+    console.error(
+      "ERROR: No LLM service configured. Set LLM_PROVIDER + LLM_API_KEY in .env",
+    );
     process.exit(1);
   }
 
@@ -122,7 +124,9 @@ async function main() {
       if (t?.claimVerdicts?.length) {
         for (const cv of t.claimVerdicts) {
           if (cv.verdict !== "uncertain") {
-            console.log(`       claim: [${cv.type}] "${cv.text}" → ${cv.verdict}${cv.reason ? ` (${cv.reason})` : ""}`);
+            console.log(
+              `       claim: [${cv.type}] "${cv.text}" → ${cv.verdict}${cv.reason ? ` (${cv.reason})` : ""}`,
+            );
           }
         }
       }
@@ -133,7 +137,9 @@ async function main() {
         }
       }
       if (t?.boundaryVerdict && t.boundaryVerdict !== "pass") {
-        console.log(`       boundary: ${t.boundaryVerdict}${t.boundaryReasons?.length ? " — " + t.boundaryReasons.join("; ") : ""}`);
+        console.log(
+          `       boundary: ${t.boundaryVerdict}${t.boundaryReasons?.length ? ` — ${t.boundaryReasons.join("; ")}` : ""}`,
+        );
       }
     }
   }
@@ -144,7 +150,12 @@ async function main() {
     console.log("\n══════════ POSITIONING PLAN ══════════");
     console.log("Target frame:", plan.targetFrame);
     console.log("Candidate thesis:", plan.candidateThesis);
-    console.log("Allowed translations:", plan.allowedTranslations?.map((t) => `${t.from} → ${t.to} [${t.claimType}]`).join("; ") || "none");
+    console.log(
+      "Allowed translations:",
+      plan.allowedTranslations
+        ?.map((t) => `${t.from} → ${t.to} [${t.claimType}]`)
+        .join("; ") || "none",
+    );
     console.log("Overclaim risks:", plan.overclaimRisks?.join("; ") || "none");
     console.log("Must-avoid:", plan.mustAvoidConcepts?.join("; ") || "none");
   }
@@ -155,8 +166,14 @@ async function main() {
     console.log("\n══════════ VERIFIER ══════════");
     console.log("Pitch verdict:", rv.pitchJudge?.verdict);
     console.log("Dominant pitch:", rv.pitchJudge?.dominantPitchDetected);
-    console.log("Source pitch dominating:", rv.pitchJudge?.sourcePitchDominating);
-    console.log("Failed sections:", rv.pitchJudge?.failedSections?.join(", ") || "none");
+    console.log(
+      "Source pitch dominating:",
+      rv.pitchJudge?.sourcePitchDominating,
+    );
+    console.log(
+      "Failed sections:",
+      rv.pitchJudge?.failedSections?.join(", ") || "none",
+    );
     console.log("Softened bullets:", rv.softenedBullets);
     console.log("Dropped bullets:", rv.droppedBullets);
   }
@@ -165,8 +182,14 @@ async function main() {
   console.log("\n══════════ GENERATION TRACE ══════════");
   const gt = d.generationTrace;
   console.log("Selected evidence count:", gt.selectedEvidence?.length ?? 0);
-  console.log("Content plan experience allocations:", gt.contentPlan?.experienceAllocations?.map((a) => `${a.experienceId}[${a.kind}]`).join(", ") || "none");
-  if (gt.densityWarnings?.length) console.log("Density warnings:", gt.densityWarnings.join("; "));
+  console.log(
+    "Content plan experience allocations:",
+    gt.contentPlan?.experienceAllocations
+      ?.map((a) => `${a.experienceId}[${a.kind}]`)
+      .join(", ") || "none",
+  );
+  if (gt.densityWarnings?.length)
+    console.log("Density warnings:", gt.densityWarnings.join("; "));
 
   console.log("\n=== DONE ===");
 }

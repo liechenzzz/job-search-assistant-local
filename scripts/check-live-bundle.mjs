@@ -67,7 +67,9 @@ if (staleHealth.length > 0) {
       health,
     )}`,
   );
-  console.error("Rebuild and restart the job-ops container before testing JD alignment.");
+  console.error(
+    "Rebuild and restart the job-ops container before testing JD alignment.",
+  );
   process.exit(1);
 }
 

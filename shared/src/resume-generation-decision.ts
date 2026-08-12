@@ -1,7 +1,7 @@
-import {
-  type DocumentPolicy,
-  type ResumePagePolicyReason,
-  type ResumeTargetPages,
+import type {
+  DocumentPolicy,
+  ResumePagePolicyReason,
+  ResumeTargetPages,
 } from "./document-policy";
 import type { JdKeywordProfile } from "./types/jobs";
 import type { ApplicationRoleFamily } from "./types/settings";

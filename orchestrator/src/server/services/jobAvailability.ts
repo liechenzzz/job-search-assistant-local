@@ -48,7 +48,8 @@ export function classifyJobAvailabilityFromContent(args: {
   if (CLOSED_TEXT_PATTERN.test(normalized)) {
     return {
       status: "filled",
-      reason: "Posting page says the job is closed, filled, or no longer accepting applications.",
+      reason:
+        "Posting page says the job is closed, filled, or no longer accepting applications.",
       closeJob: true,
     };
   }
@@ -126,7 +127,8 @@ async function fetchPostingContent(
       headers: {
         "User-Agent":
           "Mozilla/5.0 (compatible; JobOpsAvailabilityCheck/1.0; +https://localhost)",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
     });
     const content = await response.text().catch(() => "");
@@ -233,7 +235,8 @@ export async function recheckJobAvailability(args?: {
       const isDeadlineExpiry = decision.status === "expired";
       const shouldClose =
         decision.closeJob &&
-        (isDeadlineExpiry || (job.status !== "ready" && job.status !== "applied"));
+        (isDeadlineExpiry ||
+          (job.status !== "ready" && job.status !== "applied"));
       await jobsRepo.updateJob(job.id, {
         availabilityStatus: decision.status,
         availabilityReason: decision.reason,

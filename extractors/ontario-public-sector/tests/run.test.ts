@@ -268,7 +268,9 @@ describe("runOntarioPublicSector", () => {
         status: "skipped",
       }),
     );
-    expect(result.jobs.find((job) => job.title === "Policy Data Analyst")).toEqual(
+    expect(
+      result.jobs.find((job) => job.title === "Policy Data Analyst"),
+    ).toEqual(
       expect.objectContaining({
         source: "ontario-public-sector",
         sourceJobId: "barrie:policy-data-analyst-CA-123456-en",

@@ -397,7 +397,8 @@ export async function replaceCurrentDesignResumeDocument(input: {
   const existingDocument = await getCurrentDesignResumeOrNullOnLegacy(variant);
   const importedAt = input.importedAt ?? new Date().toISOString();
   const saved = await designResumeRepo.upsertDesignResumeDocument({
-    id: existingDocument?.id ?? buildTenantScopedDesignResumeDocumentId(variant),
+    id:
+      existingDocument?.id ?? buildTenantScopedDesignResumeDocumentId(variant),
     title: buildDocumentTitle(input.resumeJson),
     resumeJson: input.resumeJson,
     revision: 1,
@@ -617,10 +618,13 @@ export async function uploadDesignResumePicture(input: {
 
   let updated: DesignResumeDocument;
   try {
-    updated = await updateCurrentDesignResume({
-      baseRevision: input.baseRevision ?? current.revision,
-      document: nextDocument,
-    }, variant);
+    updated = await updateCurrentDesignResume(
+      {
+        baseRevision: input.baseRevision ?? current.revision,
+        document: nextDocument,
+      },
+      variant,
+    );
   } catch (error) {
     await designResumeRepo.deleteDesignResumeAsset(assetId);
     await deleteAssetFile(storagePath);
@@ -667,10 +671,13 @@ export async function deleteDesignResumePicture(input?: {
     url: "",
   } as DesignResumeJson["picture"];
 
-  const updated = await updateCurrentDesignResume({
-    baseRevision: input?.baseRevision ?? current.revision,
-    document: nextDocument,
-  }, variant);
+  const updated = await updateCurrentDesignResume(
+    {
+      baseRevision: input?.baseRevision ?? current.revision,
+      document: nextDocument,
+    },
+    variant,
+  );
 
   if (asset) {
     try {
@@ -723,7 +730,8 @@ export async function exportDesignResume(
 export async function designResumeToProfile(
   document?: DesignResumeJson | null,
 ): Promise<ResumeProfile | null> {
-  const source = document ?? (await getCurrentDesignResume("two_page"))?.resumeJson;
+  const source =
+    document ?? (await getCurrentDesignResume("two_page"))?.resumeJson;
   if (!source) return null;
 
   const basics = asRecord(source.basics) ?? {};

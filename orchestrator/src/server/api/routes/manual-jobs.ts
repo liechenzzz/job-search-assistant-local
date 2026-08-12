@@ -87,7 +87,10 @@ manualJobsRouter.post("/fetch", async (req: Request, res: Response) => {
       );
     }
 
-    const staticContent = extractJobContentFromHtml(await response.text(), "static");
+    const staticContent = extractJobContentFromHtml(
+      await response.text(),
+      "static",
+    );
     let extracted = staticContent;
     const warnings: string[] = [];
     if (shouldUseRenderedJobFallback(staticContent.content)) {
@@ -96,14 +99,18 @@ manualJobsRouter.post("/fetch", async (req: Request, res: Response) => {
         if (rendered && rendered.textLength > staticContent.textLength * 1.25) {
           extracted = rendered;
         } else if (!rendered) {
-          warnings.push("Browser-render fallback unavailable; returned static HTML extraction.");
+          warnings.push(
+            "Browser-render fallback unavailable; returned static HTML extraction.",
+          );
         }
       } catch (error) {
         logger.warn("Manual JD browser-render fallback failed", {
           error,
           url: input.url,
         });
-        warnings.push("Browser-render fallback failed; returned static HTML extraction.");
+        warnings.push(
+          "Browser-render fallback failed; returned static HTML extraction.",
+        );
       }
     }
 

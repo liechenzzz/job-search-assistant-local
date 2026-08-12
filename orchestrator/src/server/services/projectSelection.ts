@@ -2,10 +2,10 @@
  * Service for AI-powered project selection for resumes.
  */
 
+import type { JdQualificationProfile } from "@shared/types";
 import type { JsonSchemaDefinition } from "./llm/types";
 import { createConfiguredLlmService, resolveLlmModel } from "./modelSelection";
 import type { ResumeProjectSelectionItem } from "./resumeProjects";
-import type { JdQualificationProfile } from "@shared/types";
 
 /** JSON schema for project selection response */
 const PROJECT_SELECTION_SCHEMA: JsonSchemaDefinition = {

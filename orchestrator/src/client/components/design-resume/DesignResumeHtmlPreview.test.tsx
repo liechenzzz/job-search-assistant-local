@@ -49,13 +49,12 @@ describe("DesignResumeHtmlPreview", () => {
         "one_page",
         3,
       );
-      const iframe = container.querySelector("iframe");
-      expect(iframe?.getAttribute("srcdoc")).toContain("Resume preview");
-      expect(iframe?.getAttribute("src")).toBeNull();
+      const preview = container.querySelector(".resume-preview-wrapper");
+      expect(preview).toHaveTextContent("Resume preview");
     });
   });
 
-  it("waits for unsaved edits before refreshing the iframe", async () => {
+  it("waits for unsaved edits before refreshing the preview", async () => {
     const { container, rerender } = render(
       <DesignResumeHtmlPreview
         draft={makeDraft(8)}
@@ -69,7 +68,9 @@ describe("DesignResumeHtmlPreview", () => {
       screen.getByText("Saving changes before updating the preview"),
     ).toBeInTheDocument();
     expect(apiMocks.getDesignResumeHtmlPreview).not.toHaveBeenCalled();
-    expect(container.querySelector("iframe")).toBeNull();
+    expect(
+      container.querySelector(".resume-preview-wrapper"),
+    ).toBeEmptyDOMElement();
 
     rerender(
       <DesignResumeHtmlPreview
@@ -85,8 +86,8 @@ describe("DesignResumeHtmlPreview", () => {
         "two_page",
         9,
       );
-      const iframe = container.querySelector("iframe");
-      expect(iframe?.getAttribute("srcdoc")).toContain("Resume preview");
+      const preview = container.querySelector(".resume-preview-wrapper");
+      expect(preview).toHaveTextContent("Resume preview");
     });
   });
 });

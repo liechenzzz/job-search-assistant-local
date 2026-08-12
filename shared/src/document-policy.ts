@@ -48,7 +48,9 @@ export function buildCoverLetterHeader(profile?: ResumeProfile): string[] {
   const locationLine = [location?.city, location?.region, location?.countryCode]
     .filter(Boolean)
     .join(", ");
-  const contactLine = [basics?.email, basics?.phone].filter(Boolean).join(" | ");
+  const contactLine = [basics?.email, basics?.phone]
+    .filter(Boolean)
+    .join(" | ");
   const linkedIn = basics?.profiles?.find(
     (item) =>
       item.network?.toLowerCase() === "linkedin" ||
@@ -274,7 +276,9 @@ function isExplicitConsultingJob(
   const title = normalizePolicyText(input.title);
   const employer = normalizePolicyText(input.employer);
   const text = normalizePolicyText(
-    [input.title, input.employer, input.jobDescription].filter(Boolean).join("\n"),
+    [input.title, input.employer, input.jobDescription]
+      .filter(Boolean)
+      .join("\n"),
   );
 
   if (CONSULTING_EMPLOYERS.some((name) => employer.includes(name))) {
@@ -312,12 +316,14 @@ export function resolveDocumentPolicy(
     resumeTargetPages = 2;
     resumePagePolicyReason = "ontario_provincial";
     resumePagePolicyLabel = "2-page locked · Ontario provincial / OPS";
-    reason = "Ontario provincial and OPS applications always use a two-page resume.";
+    reason =
+      "Ontario provincial and OPS applications always use a two-page resume.";
   } else if (isCityOrMunicipalJob(input)) {
     resumeTargetPages = 2;
     resumePagePolicyReason = "city_public_sector";
     resumePagePolicyLabel = "2-page locked · City / municipal";
-    reason = "City, municipal, regional, and local public-sector applications always use a two-page resume.";
+    reason =
+      "City, municipal, regional, and local public-sector applications always use a two-page resume.";
   } else if (isBroadPublicSectorJob(input)) {
     resumeTargetPages = 2;
     resumePagePolicyReason = "public_sector_government";
@@ -328,7 +334,8 @@ export function resolveDocumentPolicy(
     resumeTargetPages = 1;
     resumePagePolicyReason = "consulting";
     resumePagePolicyLabel = "1-page locked · Consulting";
-    reason = "Explicit consulting and advisory applications always use a one-page resume.";
+    reason =
+      "Explicit consulting and advisory applications always use a one-page resume.";
   } else {
     resumePagePolicyMode = "manual";
     resumePagePolicyReason = "manual";

@@ -1,11 +1,3 @@
-import type {
-  EvidenceFitReport,
-  JdQualificationProfile,
-  ResumeAlignmentReport,
-  ResumeCoveragePlan,
-  ResumeCoveragePlanItem,
-  ResumeReferenceScanItem,
-} from "./types";
 import {
   allowedEvidenceSectionsForQualification,
   hasSemanticCoverage,
@@ -14,6 +6,14 @@ import {
   normalizeEvidenceSection,
   SEMANTIC_QUALIFICATION_ENGINE_VERSION,
 } from "./qualification-semantics.js";
+import type {
+  EvidenceFitReport,
+  JdQualificationProfile,
+  ResumeAlignmentReport,
+  ResumeCoveragePlan,
+  ResumeCoveragePlanItem,
+  ResumeReferenceScanItem,
+} from "./types";
 
 const STOPWORDS = new Set([
   "and",
@@ -127,10 +127,18 @@ export function buildResumeAlignmentReport(args: {
       isAllowedEvidenceSection(section, allowedEvidenceSections),
     );
     const matched = allowedResumeSections.filter(([, text]) =>
-      hasSemanticCoverage({ text, qualification: requirement, keywords, semanticType }),
+      hasSemanticCoverage({
+        text,
+        qualification: requirement,
+        keywords,
+        semanticType,
+      }),
     );
     if (matched.length > 0) {
-      if (brief?.evidenceStatus === "transferable" && isSpecificRequirement(requirement)) {
+      if (
+        brief?.evidenceStatus === "transferable" &&
+        isSpecificRequirement(requirement)
+      ) {
         partial += 1;
         if (partialRequired.length < 5) partialRequired.push(requirement);
       } else {
@@ -150,16 +158,17 @@ export function buildResumeAlignmentReport(args: {
         semanticType,
       }),
     );
-    const referenceMatch = [...referenceTextByFile.entries()].find(([, entry]) =>
-      entry.sections.some((section) =>
-        isAllowedEvidenceSection(section, allowedEvidenceSections),
-      ) &&
-      hasSemanticCoverage({
-        text: entry.text,
-        qualification: requirement,
-        keywords,
-        semanticType,
-      }),
+    const referenceMatch = [...referenceTextByFile.entries()].find(
+      ([, entry]) =>
+        entry.sections.some((section) =>
+          isAllowedEvidenceSection(section, allowedEvidenceSections),
+        ) &&
+        hasSemanticCoverage({
+          text: entry.text,
+          qualification: requirement,
+          keywords,
+          semanticType,
+        }),
     );
 
     const hasEvidenceBrief = brief && brief.evidenceStatus !== "none";
@@ -254,7 +263,10 @@ export function buildEvidenceFitReport(
 
   const score = Math.max(
     0,
-    Math.min(100, Math.round(((direct + transferable * 0.75) / scored.length) * 100)),
+    Math.min(
+      100,
+      Math.round(((direct + transferable * 0.75) / scored.length) * 100),
+    ),
   );
   const status =
     noEvidenceRequired.length >= 2
@@ -302,7 +314,9 @@ export function filterSkillsForQualificationEvidence(
     .filter((group) => group.keywords.length > 0)
     .slice(0, 6);
   const existing = new Set(
-    filtered.flatMap((group) => group.keywords.map((keyword) => normalizeText(keyword))),
+    filtered.flatMap((group) =>
+      group.keywords.map((keyword) => normalizeText(keyword)),
+    ),
   );
   const supplemental = args.qualificationProfile.keywords
     .filter((keyword) => {
@@ -328,7 +342,10 @@ export function filterSkillsForQualificationEvidence(
   return [
     {
       ...filtered[0],
-      keywords: [...filtered[0].keywords, ...supplemental].slice(0, maxKeywords),
+      keywords: [...filtered[0].keywords, ...supplemental].slice(
+        0,
+        maxKeywords,
+      ),
     },
     ...filtered.slice(1),
   ];
@@ -341,9 +358,14 @@ function shouldKeepSkillKeyword(
   const normalized = normalizeText(keyword);
   if (!normalized) return false;
   if (SKILL_ALWAYS_ALLOW.has(normalized)) {
-    return args.jdText.includes(normalized) && args.evidenceText.includes(normalized);
+    return (
+      args.jdText.includes(normalized) && args.evidenceText.includes(normalized)
+    );
   }
-  if (args.jdText.includes(normalized) && args.evidenceText.includes(normalized)) {
+  if (
+    args.jdText.includes(normalized) &&
+    args.evidenceText.includes(normalized)
+  ) {
     return true;
   }
   const pieces = normalized
@@ -356,7 +378,9 @@ function shouldKeepSkillKeyword(
 
 function requirementKeywords(requirement: string): string[] {
   const normalized = normalizeText(requirement);
-  const phrases = normalized.match(/\b[a-z][a-z0-9+#.-]*(?:\s+[a-z][a-z0-9+#.-]*){1,3}\b/g) ?? [];
+  const phrases =
+    normalized.match(/\b[a-z][a-z0-9+#.-]*(?:\s+[a-z][a-z0-9+#.-]*){1,3}\b/g) ??
+    [];
   const words = normalized
     .split(/[^a-z0-9+#.-]+/)
     .filter((word) => word.length >= 4 && !STOPWORDS.has(word));
@@ -376,12 +400,12 @@ function findCoverageItem(
 ): ResumeCoveragePlanItem | undefined {
   if (!plan) return undefined;
   const normalized = normalizeText(requirement);
-  return (
-    plan.items[index]?.qualification &&
+  return plan.items[index]?.qualification &&
     normalizeText(plan.items[index].qualification) === normalized
-      ? plan.items[index]
-      : plan.items.find((item) => normalizeText(item.qualification) === normalized)
-  );
+    ? plan.items[index]
+    : plan.items.find(
+        (item) => normalizeText(item.qualification) === normalized,
+      );
 }
 
 function mergeUnique(values: string[]): string[] {
@@ -432,7 +456,11 @@ function normalizeText(value: string): string {
 function pushUnique(values: string[], value: string, max: number): void {
   const normalized = value.trim();
   if (!normalized) return;
-  if (values.some((existing) => existing.toLowerCase() === normalized.toLowerCase())) {
+  if (
+    values.some(
+      (existing) => existing.toLowerCase() === normalized.toLowerCase(),
+    )
+  ) {
     return;
   }
   if (values.length >= max) return;

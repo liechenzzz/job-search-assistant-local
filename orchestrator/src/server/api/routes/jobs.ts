@@ -52,12 +52,13 @@ import {
   pdfExists,
 } from "@server/services/pdf";
 import { getProfile } from "@server/services/profile";
-import { getResumeReferenceScan } from "@server/services/resume-references";
 import { resolveResumeGenerationDecisionForJob } from "@server/services/resume-generation-decision";
+import { getResumeReferenceScan } from "@server/services/resume-references";
 import { scoreJobSuitability } from "@server/services/scorer";
 import { getTracerReadiness } from "@server/services/tracer-links";
 import * as visaSponsors from "@server/services/visa-sponsors/index";
 import { asyncPool } from "@server/utils/async-pool";
+import { resolveDocumentPolicy } from "@shared/document-policy.js";
 import {
   APPLICATION_OUTCOMES,
   APPLICATION_STAGES,
@@ -74,7 +75,6 @@ import {
   type ResumeAlignmentDetailResponse,
   type TailoredExperienceItem,
 } from "@shared/types";
-import { resolveDocumentPolicy } from "@shared/document-policy.js";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 
@@ -179,7 +179,8 @@ const updateJobSchema = z.object({
   resumeAlignmentReport: z.string().optional(),
   resumeServiceFitReport: z.string().nullable().optional(),
   resumePositioningPlan: z.string().optional(),
-  resumeTargetPagesOverride: z.union([z.literal(1), z.literal(2)])
+  resumeTargetPagesOverride: z
+    .union([z.literal(1), z.literal(2)])
     .nullable()
     .optional(),
   tailoredSkills: z
@@ -829,35 +830,44 @@ jobsRouter.post("/actions", async (req: Request, res: Response) => {
   }
 });
 
-jobsRouter.post("/recheck-availability", async (req: Request, res: Response) => {
-  try {
-    if (isDemoMode()) {
-      return sendDemoBlocked(res, "Availability checks are disabled in demo mode.");
-    }
-    const parsed = availabilityRecheckSchema.safeParse(req.body ?? {});
-    if (!parsed.success) {
-      return fail(
-        res,
-        badRequest("Invalid availability recheck request", parsed.error.flatten()),
-      );
-    }
+jobsRouter.post(
+  "/recheck-availability",
+  async (req: Request, res: Response) => {
+    try {
+      if (isDemoMode()) {
+        return sendDemoBlocked(
+          res,
+          "Availability checks are disabled in demo mode.",
+        );
+      }
+      const parsed = availabilityRecheckSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return fail(
+          res,
+          badRequest(
+            "Invalid availability recheck request",
+            parsed.error.flatten(),
+          ),
+        );
+      }
 
-    const summary = await recheckJobAvailability({
-      limit: parsed.data.limit ?? 100,
-    });
-    ok(res, summary);
-  } catch (error) {
-    const err =
-      error instanceof AppError
-        ? error
-        : new AppError({
-            status: 500,
-            code: "INTERNAL_ERROR",
-            message: error instanceof Error ? error.message : "Unknown error",
-          });
-    fail(res, err);
-  }
-});
+      const summary = await recheckJobAvailability({
+        limit: parsed.data.limit ?? 100,
+      });
+      ok(res, summary);
+    } catch (error) {
+      const err =
+        error instanceof AppError
+          ? error
+          : new AppError({
+              status: 500,
+              code: "INTERNAL_ERROR",
+              message: error instanceof Error ? error.message : "Unknown error",
+            });
+      fail(res, err);
+    }
+  },
+);
 
 /**
  * POST /api/jobs/actions/stream - Run a job action and stream per-job progress via SSE
@@ -1772,7 +1782,8 @@ jobsRouter.get("/:id/word", async (req: Request, res: Response) => {
       return fail(
         res,
         new AppError({
-          status: STATUS_BY_APP_ERROR_CODE[result.errorCode ?? "INTERNAL_ERROR"],
+          status:
+            STATUS_BY_APP_ERROR_CODE[result.errorCode ?? "INTERNAL_ERROR"],
           code: result.errorCode ?? "INTERNAL_ERROR",
           message: result.error ?? "Failed to generate Word draft",
         }),
@@ -1856,7 +1867,8 @@ jobsRouter.get("/:id/resume-html", async (req: Request, res: Response) => {
       return fail(
         res,
         new AppError({
-          status: STATUS_BY_APP_ERROR_CODE[result.errorCode ?? "INTERNAL_ERROR"],
+          status:
+            STATUS_BY_APP_ERROR_CODE[result.errorCode ?? "INTERNAL_ERROR"],
           code: result.errorCode ?? "INTERNAL_ERROR",
           message: result.error ?? "Failed to generate HTML resume",
         }),
@@ -1895,57 +1907,56 @@ jobsRouter.get(
   },
 );
 
-jobsRouter.get(
-  "/:id/resume-alignment",
-  async (req: Request, res: Response) => {
-    try {
-      const job = await jobsRepo.getJobById(req.params.id);
-      if (!job) {
-        return fail(res, notFound("Job not found"));
-      }
-      const scan = await getResumeReferenceScan();
-      const report = parseJsonField<ResumeAlignmentDetailResponse["report"]>(
-        job.resumeAlignmentReport,
-      );
-      const qualificationProfile = parseJsonField<
-        ResumeAlignmentDetailResponse["qualificationProfile"]
-      >(job.jdQualificationProfile);
-      const serviceValueBrief = parseJsonField<
-        ResumeAlignmentDetailResponse["serviceValueBrief"]
-      >(job.jdServiceValueBrief);
-      const serviceFitReport = parseJsonField<
-        ResumeAlignmentDetailResponse["serviceFitReport"]
-      >(job.resumeServiceFitReport);
-      const positioningPlan = parseJsonField<
-        ResumeAlignmentDetailResponse["positioningPlan"]
-      >(job.resumePositioningPlan);
-      const used = new Set(report?.referenceUsed ?? []);
-      const referenceSources =
-        scan?.items
-          .filter((item) => used.has(item.relativePath) || used.has(item.fileName))
-          .slice(0, 5)
-          .map((item) => ({
-            fileName: item.fileName,
-            relativePath: item.relativePath,
-            inferredRole: item.inferredRole,
-            kind: item.kind,
-            sections: item.sections,
-            snippets: item.snippets,
-          })) ?? [];
-      ok(res, {
-        jobId: job.id,
-        qualificationProfile,
-        serviceValueBrief,
-        report,
-        serviceFitReport,
-        positioningPlan,
-        referenceSources,
-      } satisfies ResumeAlignmentDetailResponse);
-    } catch (error) {
-      fail(res, toAppError(error));
+jobsRouter.get("/:id/resume-alignment", async (req: Request, res: Response) => {
+  try {
+    const job = await jobsRepo.getJobById(req.params.id);
+    if (!job) {
+      return fail(res, notFound("Job not found"));
     }
-  },
-);
+    const scan = await getResumeReferenceScan();
+    const report = parseJsonField<ResumeAlignmentDetailResponse["report"]>(
+      job.resumeAlignmentReport,
+    );
+    const qualificationProfile = parseJsonField<
+      ResumeAlignmentDetailResponse["qualificationProfile"]
+    >(job.jdQualificationProfile);
+    const serviceValueBrief = parseJsonField<
+      ResumeAlignmentDetailResponse["serviceValueBrief"]
+    >(job.jdServiceValueBrief);
+    const serviceFitReport = parseJsonField<
+      ResumeAlignmentDetailResponse["serviceFitReport"]
+    >(job.resumeServiceFitReport);
+    const positioningPlan = parseJsonField<
+      ResumeAlignmentDetailResponse["positioningPlan"]
+    >(job.resumePositioningPlan);
+    const used = new Set(report?.referenceUsed ?? []);
+    const referenceSources =
+      scan?.items
+        .filter(
+          (item) => used.has(item.relativePath) || used.has(item.fileName),
+        )
+        .slice(0, 5)
+        .map((item) => ({
+          fileName: item.fileName,
+          relativePath: item.relativePath,
+          inferredRole: item.inferredRole,
+          kind: item.kind,
+          sections: item.sections,
+          snippets: item.snippets,
+        })) ?? [];
+    ok(res, {
+      jobId: job.id,
+      qualificationProfile,
+      serviceValueBrief,
+      report,
+      serviceFitReport,
+      positioningPlan,
+      referenceSources,
+    } satisfies ResumeAlignmentDetailResponse);
+  } catch (error) {
+    fail(res, toAppError(error));
+  }
+});
 
 /**
  * POST /api/jobs/:id/summarize - Generate AI summary and suggest projects
@@ -2079,7 +2090,10 @@ jobsRouter.post("/:id/generate-pdf", async (req: Request, res: Response) => {
     if (!result.success) {
       return fail(
         res,
-        appErrorFromPipelineFailure(result, "Failed to generate resume materials"),
+        appErrorFromPipelineFailure(
+          result,
+          "Failed to generate resume materials",
+        ),
       );
     }
 

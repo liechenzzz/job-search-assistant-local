@@ -664,13 +664,7 @@ describe("OrchestratorPage", () => {
       expect(locationText).not.toContain("salaryMax=");
       expect(locationText).not.toContain("q=");
     });
-    expect(mockJobListScrollToIndex).toHaveBeenCalledWith(
-      0,
-      expect.objectContaining({
-        align: "center",
-        behavior: "smooth",
-      }),
-    );
+    expect(screen.getByTestId("selected-job")).toHaveTextContent("job-2");
   });
 
   it("removes legacy q query params on load", async () => {

@@ -1,9 +1,9 @@
 import { useKeyboardAvailability } from "@client/hooks/useKeyboardAvailability";
 import { useSettings } from "@client/hooks/useSettings";
+import { isDiscoveryActionQueueCandidate } from "@shared/job-lifecycle";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { isDiscoveryActionQueueCandidate } from "@shared/job-lifecycle";
 import type { VirtualListHandle } from "@/client/lib/virtual-list";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent } from "@/components/ui/drawer";
@@ -58,7 +58,13 @@ export const OrchestratorPage: React.FC = () => {
   } = useOrchestratorFilters();
 
   const activeTab = useMemo(() => {
-    const validTabs: FilterTab[] = ["ready", "discovered", "applied", "archived", "all"];
+    const validTabs: FilterTab[] = [
+      "ready",
+      "discovered",
+      "applied",
+      "archived",
+      "all",
+    ];
     if (tab && validTabs.includes(tab as FilterTab)) {
       return tab as FilterTab;
     }
@@ -87,7 +93,13 @@ export const OrchestratorPage: React.FC = () => {
       navigate("/applications/in-progress", { replace: true });
       return;
     }
-    const validTabs: FilterTab[] = ["ready", "discovered", "applied", "archived", "all"];
+    const validTabs: FilterTab[] = [
+      "ready",
+      "discovered",
+      "applied",
+      "archived",
+      "all",
+    ];
     if (tab && !validTabs.includes(tab as FilterTab)) {
       navigateWithContext("ready", null, true);
     }

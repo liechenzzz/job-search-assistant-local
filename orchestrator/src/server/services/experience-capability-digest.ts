@@ -1,6 +1,6 @@
 import type {
-  ExperienceCapabilityDigest,
   ExperienceAnchorSummary,
+  ExperienceCapabilityDigest,
   JdNormalizedRequirement,
   JdQualificationProfile,
   ResumeProfile,
@@ -67,7 +67,10 @@ const EXPERIENCE_DIGEST_SCHEMA: JsonSchemaDefinition = {
             coreClaims: { type: "array", items: { type: "string" } },
             transferableClaims: { type: "array", items: { type: "string" } },
             matchedRequirementIds: { type: "array", items: { type: "string" } },
-            recommendedBulletThemes: { type: "array", items: { type: "string" } },
+            recommendedBulletThemes: {
+              type: "array",
+              items: { type: "string" },
+            },
             sourceChunkIds: { type: "array", items: { type: "string" } },
             blockedClaims: { type: "array", items: { type: "string" } },
             confidence: {
@@ -106,7 +109,10 @@ export async function buildExperienceCapabilityDigests(args: {
   llm?: ExperienceDigestLlmClient;
   model?: string;
 }): Promise<ExperienceCapabilityDigest[]> {
-  const experiences = collectVisibleExperiences(args.profile, args.sourceExperiences);
+  const experiences = collectVisibleExperiences(
+    args.profile,
+    args.sourceExperiences,
+  );
   if (experiences.length === 0) return [];
 
   const requirements = getRequirements(args.qualificationProfile);
@@ -200,8 +206,12 @@ function collectVisibleExperiences(
         const id = item.id || `experience-${index}`;
         const sourceText =
           sourceExperiences.find((source) => source.id === id)?.sourceText ??
-          stripHtml([item.summary, record.description].filter(Boolean).join("\n"));
-        const label = [item.position, item.company].filter(Boolean).join(" at ");
+          stripHtml(
+            [item.summary, record.description].filter(Boolean).join("\n"),
+          );
+        const label = [item.position, item.company]
+          .filter(Boolean)
+          .join(" at ");
         return {
           id,
           label: label || id,
@@ -238,7 +248,9 @@ function matchEvidenceToExperience(args: {
           experienceText.includes(normalize(keyword)),
         ).length;
         if (keywordOverlap >= 1) return true;
-        const overlap = experienceTerms.filter((term) => chunkText.includes(term)).length;
+        const overlap = experienceTerms.filter((term) =>
+          chunkText.includes(term),
+        ).length;
         return overlap >= 3;
       })
       .map((chunk) => ({
@@ -357,7 +369,8 @@ function buildAnchorBackedDigest(args: {
   const selectedByAnchor = args.selectedEvidence.filter((item) =>
     item.chunks.some(
       (chunk) =>
-        chunk.experienceAnchorId && matchedAnchorIds.has(chunk.experienceAnchorId),
+        chunk.experienceAnchorId &&
+        matchedAnchorIds.has(chunk.experienceAnchorId),
     ),
   );
   const matchedRequirementIds = Array.from(
@@ -464,8 +477,12 @@ function findMatchedAnchors(args: {
     .map((anchor) => ({
       anchor,
       score:
-        (company && normalize(anchor.identity.company).includes(company) ? 20 : 0) +
-        (position && normalize(anchor.identity.title).includes(position) ? 20 : 0) +
+        (company && normalize(anchor.identity.company).includes(company)
+          ? 20
+          : 0) +
+        (position && normalize(anchor.identity.title).includes(position)
+          ? 20
+          : 0) +
         tokenize(
           [
             anchor.identity.company,
@@ -552,10 +569,18 @@ function sanitizeDigestResponse(
       const fitLevel = record.fitLevel;
       const confidence = record.confidence;
       if (!experienceId || !label) return null;
-      if (fitLevel !== "primary" && fitLevel !== "relevant" && fitLevel !== "background") {
+      if (
+        fitLevel !== "primary" &&
+        fitLevel !== "relevant" &&
+        fitLevel !== "background"
+      ) {
         return null;
       }
-      if (confidence !== "high" && confidence !== "medium" && confidence !== "low") {
+      if (
+        confidence !== "high" &&
+        confidence !== "medium" &&
+        confidence !== "low"
+      ) {
         return null;
       }
       return {
@@ -565,8 +590,14 @@ function sanitizeDigestResponse(
         capabilitySummary: truncate(stringValue(record.capabilitySummary), 700),
         coreClaims: sanitizeStringList(record.coreClaims, 10),
         transferableClaims: sanitizeStringList(record.transferableClaims, 8),
-        matchedRequirementIds: sanitizeStringList(record.matchedRequirementIds, 12),
-        recommendedBulletThemes: sanitizeStringList(record.recommendedBulletThemes, 10),
+        matchedRequirementIds: sanitizeStringList(
+          record.matchedRequirementIds,
+          12,
+        ),
+        recommendedBulletThemes: sanitizeStringList(
+          record.recommendedBulletThemes,
+          10,
+        ),
         sourceChunkIds: sanitizeStringList(record.sourceChunkIds, 12),
         blockedClaims: sanitizeStringList(record.blockedClaims, 10),
         confidence,
@@ -579,7 +610,9 @@ function mergeLlmDigests(args: {
   fallback: ExperienceCapabilityDigest[];
   llmItems: ExperienceCapabilityDigest[];
 }): ExperienceCapabilityDigest[] {
-  const llmById = new Map(args.llmItems.map((item) => [item.experienceId, item]));
+  const llmById = new Map(
+    args.llmItems.map((item) => [item.experienceId, item]),
+  );
   return args.fallback.map((fallback) => {
     const llm = llmById.get(fallback.experienceId);
     if (!llm) return fallback;
@@ -591,7 +624,9 @@ function mergeLlmDigests(args: {
       recommendedBulletThemes: llm.recommendedBulletThemes.length
         ? llm.recommendedBulletThemes
         : fallback.recommendedBulletThemes,
-      sourceChunkIds: llm.sourceChunkIds.length ? llm.sourceChunkIds : fallback.sourceChunkIds,
+      sourceChunkIds: llm.sourceChunkIds.length
+        ? llm.sourceChunkIds
+        : fallback.sourceChunkIds,
       matchedRequirementIds: llm.matchedRequirementIds.length
         ? llm.matchedRequirementIds
         : fallback.matchedRequirementIds,
@@ -599,7 +634,9 @@ function mergeLlmDigests(args: {
   });
 }
 
-function getRequirements(profile: JdQualificationProfile): JdNormalizedRequirement[] {
+function getRequirements(
+  profile: JdQualificationProfile,
+): JdNormalizedRequirement[] {
   if (profile.requirements?.length) return profile.requirements.slice(0, 12);
   return profile.required.slice(0, 8).map((text, index) => ({
     id: `req-${index + 1}`,

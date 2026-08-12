@@ -235,7 +235,10 @@ designResumeRouter.patch(
     const input = designResumePatchSchema.parse(
       req.body,
     ) as DesignResumePatchRequest;
-    const document = await updateCurrentDesignResume(input, resolveVariant(req));
+    const document = await updateCurrentDesignResume(
+      input,
+      resolveVariant(req),
+    );
     clearProfileCache();
     ok(res, document);
   }),

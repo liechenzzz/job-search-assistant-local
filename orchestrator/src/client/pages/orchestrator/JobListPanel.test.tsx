@@ -173,7 +173,7 @@ describe("JobListPanel", () => {
     expect(onSelectJob).toHaveBeenCalledWith("job-2");
   });
 
-  it("shows a yellow status dot for flagged reposts without an inline badge", () => {
+  it("renders flagged reposts without an inline duplicate badge", () => {
     const jobs = [
       createJob({
         id: "job-1",
@@ -205,9 +205,9 @@ describe("JobListPanel", () => {
     );
 
     expect(screen.queryByText("Previously Applied")).not.toBeInTheDocument();
-    expect(screen.getByTitle("Previously Applied")).toHaveClass(
-      "bg-yellow-400",
-    );
+    expect(
+      screen.getByRole("button", { name: /Backend Engineer/i }),
+    ).toBeInTheDocument();
   });
 
   it("toggles row selection and select-all", () => {
@@ -239,7 +239,7 @@ describe("JobListPanel", () => {
     expect(onToggleSelectAll).toHaveBeenCalledWith(true);
   });
 
-  it("shows checkbox only for selected or checked rows", () => {
+  it("keeps row checkboxes visible and reflects checked state", () => {
     const jobs = [createJob({ id: "job-1", title: "Backend Engineer" })];
     const { rerender } = render(
       <JobListPanel
@@ -255,8 +255,10 @@ describe("JobListPanel", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Select Backend Engineer")).toHaveClass(
-      "opacity-0",
+    expect(screen.getByLabelText("Select Backend Engineer")).toBeVisible();
+    expect(screen.getByLabelText("Select Backend Engineer")).toHaveAttribute(
+      "aria-checked",
+      "false",
     );
 
     rerender(
@@ -273,8 +275,10 @@ describe("JobListPanel", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Select Backend Engineer")).toHaveClass(
-      "opacity-100",
+    expect(screen.getByLabelText("Select Backend Engineer")).toBeVisible();
+    expect(screen.getByLabelText("Select Backend Engineer")).toHaveAttribute(
+      "aria-checked",
+      "false",
     );
 
     rerender(
@@ -291,8 +295,10 @@ describe("JobListPanel", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Select Backend Engineer")).toHaveClass(
-      "opacity-100",
+    expect(screen.getByLabelText("Select Backend Engineer")).toBeVisible();
+    expect(screen.getByLabelText("Select Backend Engineer")).toHaveAttribute(
+      "aria-checked",
+      "true",
     );
   });
 

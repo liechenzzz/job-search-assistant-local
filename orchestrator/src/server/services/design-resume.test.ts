@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildDefaultReactiveResumeDocument } from "./rxresume/document";
 
 const repo = vi.hoisted(() => ({
-  getLatestDesignResumeDocument: vi.fn(),
+  getDesignResumeDocumentById: vi.fn(),
   getDesignResumeAssetById: vi.fn(),
   listDesignResumeAssets: vi.fn(),
   upsertDesignResumeDocument: vi.fn(),
@@ -94,7 +94,7 @@ function makeValidResumeJson(
 describe("design resume service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    repo.getLatestDesignResumeDocument.mockResolvedValue(makeDocumentRow());
+    repo.getDesignResumeDocumentById.mockResolvedValue(makeDocumentRow());
     repo.listDesignResumeAssets.mockResolvedValue([]);
     repo.getDesignResumeAssetById.mockResolvedValue(null);
     repo.upsertDesignResumeDocument.mockImplementation(async (input) =>
@@ -132,7 +132,7 @@ describe("design resume service", () => {
   });
 
   it("uses a tenant-scoped design resume id on first import for a tenant", async () => {
-    repo.getLatestDesignResumeDocument.mockResolvedValueOnce(null);
+    repo.getDesignResumeDocumentById.mockResolvedValueOnce(null);
 
     await replaceCurrentDesignResumeDocument({
       importedAt: "2026-04-11T00:00:00.000Z",
@@ -150,7 +150,7 @@ describe("design resume service", () => {
 
   it("preserves an explicit picture hidden flag during updates", async () => {
     const resumeJson = makeValidResumeJson();
-    repo.getLatestDesignResumeDocument.mockResolvedValueOnce(
+    repo.getDesignResumeDocumentById.mockResolvedValueOnce(
       makeDocumentRow({
         resumeJson: {
           ...resumeJson,
@@ -286,7 +286,7 @@ describe("design resume service", () => {
   });
 
   it("rejects legacy local documents and requires re-import", async () => {
-    repo.getLatestDesignResumeDocument.mockResolvedValueOnce(
+    repo.getDesignResumeDocumentById.mockResolvedValueOnce(
       makeDocumentRow({
         resumeJson: {
           basics: {
@@ -383,7 +383,7 @@ describe("design resume service", () => {
   });
 
   it("treats legacy local documents as absent in the safe accessor", async () => {
-    repo.getLatestDesignResumeDocument.mockResolvedValueOnce(
+    repo.getDesignResumeDocumentById.mockResolvedValueOnce(
       makeDocumentRow({
         resumeJson: {
           metadata: {
@@ -431,7 +431,7 @@ describe("design resume service", () => {
         content: "Unsaved summary edit",
       },
     });
-    repo.getLatestDesignResumeDocument.mockResolvedValue(
+    repo.getDesignResumeDocumentById.mockResolvedValue(
       makeDocumentRow({
         resumeJson,
       }),
@@ -528,7 +528,7 @@ describe("design resume service", () => {
         url: "/api/design-resume/assets/asset-1/content",
       },
     });
-    repo.getLatestDesignResumeDocument
+    repo.getDesignResumeDocumentById
       .mockResolvedValueOnce(
         makeDocumentRow({
           revision: 1,

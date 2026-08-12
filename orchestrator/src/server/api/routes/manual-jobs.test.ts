@@ -4,10 +4,8 @@ import { startServer, stopServer } from "./test-utils";
 
 describe("manual job URL extraction helpers", () => {
   it("extracts focused JD content and flags short shell pages for browser fallback", async () => {
-    const {
-      extractJobContentFromHtml,
-      shouldUseRenderedJobFallback,
-    } = await import("./manual-job-fetch");
+    const { extractJobContentFromHtml, shouldUseRenderedJobFallback } =
+      await import("./manual-job-fetch");
     const extracted = extractJobContentFromHtml(`
       <html>
         <head>
@@ -33,7 +31,9 @@ describe("manual job URL extraction helpers", () => {
     expect(extracted.content).not.toContain("Menu Sign in");
     expect(shouldUseRenderedJobFallback(extracted.content)).toBe(false);
     expect(
-      shouldUseRenderedJobFallback("Page Title: Job\n\nSign in Cookie Privacy policy Menu"),
+      shouldUseRenderedJobFallback(
+        "Page Title: Job\n\nSign in Cookie Privacy policy Menu",
+      ),
     ).toBe(true);
   });
 });
@@ -72,7 +72,6 @@ describe.sequential("Manual jobs API routes", () => {
 
       expect(res.status).toBe(400);
     });
-
   });
 
   it("infers manual jobs and rejects empty payloads", async () => {

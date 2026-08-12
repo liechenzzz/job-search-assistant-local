@@ -9,9 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { FilterTab } from "./constants";
-import {
-  emptyStateCopy,
-} from "./constants";
+import { emptyStateCopy } from "./constants";
 import { JobRowContent } from "./JobRowContent";
 
 interface EmptyStateAction {
@@ -197,10 +195,7 @@ export const JobListPanel = forwardRef<VirtualListHandle, JobListPanelProps>(
                     className="flex min-w-0 flex-1 cursor-pointer text-left"
                     aria-pressed={isSelected}
                   >
-                    <JobRowContent
-                      job={job}
-                      isSelected={isSelected}
-                    />
+                    <JobRowContent job={job} isSelected={isSelected} />
                   </button>
                 </div>
               );

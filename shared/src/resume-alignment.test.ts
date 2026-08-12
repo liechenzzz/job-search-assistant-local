@@ -159,11 +159,14 @@ describe("resume alignment", () => {
     expect(report.repairableRequired).toEqual([requirement]);
     expect(report.humanInputNeeded).toEqual([]);
     expect(report.evidenceFit?.score).toBeGreaterThan(report.score);
-    expect(report.evidenceFit?.referenceUsed).toEqual(["Data Analyst Resume.docx"]);
+    expect(report.evidenceFit?.referenceUsed).toEqual([
+      "Data Analyst Resume.docx",
+    ]);
   });
 
   it("separates RAG evidence fit from generated resume alignment", () => {
-    const requirement = "Experience gathering business requirements from stakeholders.";
+    const requirement =
+      "Experience gathering business requirements from stakeholders.";
     const qualificationProfile = {
       required: [requirement],
       preferred: [],
@@ -183,7 +186,10 @@ describe("resume alignment", () => {
           evidenceSources: ["reference:Business Analyst Resume.docx"],
           evidenceStatus: "direct" as const,
           targetSections: ["experience"],
-          allowedWordingHints: ["requirements gathering", "stakeholder analysis"],
+          allowedWordingHints: [
+            "requirements gathering",
+            "stakeholder analysis",
+          ],
           sourceType: "reference" as const,
         },
       ],
@@ -216,7 +222,7 @@ describe("resume alignment", () => {
     };
     const resumeSections = {
       education:
-        "University of Toronto Bachelor of Arts, City Studies and Media Studies. Master of Urban Innovation.",
+        "Example University Bachelor of Arts, Social Science. Master of Public Policy.",
       experience:
         "Conducted market research and business analysis for economic development projects.",
     };
@@ -248,7 +254,7 @@ describe("resume alignment", () => {
     };
     const resumeSections = {
       education:
-        "University of Toronto Bachelor of Arts, City Studies and Media Studies. Master of Urban Innovation.",
+        "Example University Bachelor of Arts, Social Science. Master of Public Policy.",
       experience:
         "Supported survey research, analysis, reporting, and client-ready insight synthesis.",
     };
@@ -279,7 +285,7 @@ describe("resume alignment", () => {
     };
     const resumeSections = {
       education:
-        "University of Toronto Bachelor of Arts, City Studies and Media Studies. Master of Urban Innovation.",
+        "Example University Bachelor of Arts, Social Science. Master of Public Policy.",
       experience:
         "Conducted statistics analysis and economics research for business planning projects.",
     };

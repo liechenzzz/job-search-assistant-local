@@ -12,6 +12,8 @@ const render = (ui: Parameters<typeof renderWithQueryClient>[0]) =>
   renderWithQueryClient(ui);
 
 vi.mock("../api", () => ({
+  getSettings: vi.fn().mockResolvedValue(null),
+  getResumeReferenceScan: vi.fn().mockResolvedValue(null),
   getResumeProjectsCatalog: vi.fn().mockResolvedValue([]),
   updateJob: vi.fn().mockResolvedValue({}),
   summarizeJob: vi.fn(),

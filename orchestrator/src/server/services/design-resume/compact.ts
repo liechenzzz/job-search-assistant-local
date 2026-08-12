@@ -1,9 +1,9 @@
+import { badRequest } from "@infra/errors";
 import type {
   DesignResumeDocument,
   DesignResumeJson,
   DesignResumeVariant,
 } from "@shared/types";
-import { badRequest } from "@infra/errors";
 
 type CompactTargetPages = 1 | 2;
 
@@ -34,7 +34,10 @@ function compactMetadata(
     ...typography,
     body: {
       ...body,
-      fontSize: Math.min(Number(body.fontSize) || 10, targetPages === 1 ? 9 : 10),
+      fontSize: Math.min(
+        Number(body.fontSize) || 10,
+        targetPages === 1 ? 9 : 10,
+      ),
       lineHeight: Math.min(
         Number(body.lineHeight) || 1.35,
         targetPages === 1 ? 1.15 : 1.25,

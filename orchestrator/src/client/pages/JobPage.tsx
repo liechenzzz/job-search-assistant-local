@@ -767,7 +767,9 @@ export const JobPage: React.FC = () => {
   const handleRegeneratePdf = async () => {
     await runAction("regenerate-pdf", async () => {
       if (!job) return;
-      toast.message("Repairing resume from JD + reference evidence if needed...");
+      toast.message(
+        "Repairing resume from JD + reference evidence if needed...",
+      );
       await generatePdfMutation.mutateAsync(job.id);
       toast.success("Resume materials generated");
     });

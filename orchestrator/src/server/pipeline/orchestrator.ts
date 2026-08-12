@@ -18,9 +18,9 @@ import { applyDomainGateToExperience } from "@shared/jd-domain-gate.js";
 import { buildJdKeywordProfile } from "@shared/jd-keyword-profile.js";
 import { buildJdQualificationProfile } from "@shared/jd-qualification-profile.js";
 import { createLocationIntentFromLegacyInputs } from "@shared/location-domain.js";
+import { SEMANTIC_QUALIFICATION_ENGINE_VERSION } from "@shared/qualification-semantics.js";
 import { buildResumeAlignmentReport } from "@shared/resume-alignment.js";
 import { buildResumeCoveragePlan } from "@shared/resume-coverage-plan.js";
-import { SEMANTIC_QUALIFICATION_ENGINE_VERSION } from "@shared/qualification-semantics.js";
 import type {
   Job,
   JobStatus,
@@ -39,12 +39,12 @@ import { repairStoredJobRelevance } from "../services/jobRelevanceMaintenance";
 import { generateDocx, generateHtml, generatePdf } from "../services/pdf";
 import { getProfile } from "../services/profile";
 import { pickProjectIdsForJob } from "../services/projectSelection";
+import { resolveResumeGenerationDecisionForJob } from "../services/resume-generation-decision";
+import { findResumeReferenceEvidenceForQualifications } from "../services/resume-references";
 import {
   extractProjectsFromProfile,
   resolveResumeProjectsSettings,
 } from "../services/resumeProjects";
-import { findResumeReferenceEvidenceForQualifications } from "../services/resume-references";
-import { resolveResumeGenerationDecisionForJob } from "../services/resume-generation-decision";
 import {
   generateTailoring,
   RESUME_POSITIONING_GENERATOR_VERSION,
@@ -514,7 +514,9 @@ export type ProcessJobOptions = {
   skipSummarization?: boolean;
 };
 
-function parseResumeAlignmentReport(raw: string | null): ResumeAlignmentReport | null {
+function parseResumeAlignmentReport(
+  raw: string | null,
+): ResumeAlignmentReport | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<ResumeAlignmentReport>;
@@ -535,30 +537,44 @@ function parseResumeAlignmentReport(raw: string | null): ResumeAlignmentReport |
       score: Math.max(0, Math.min(100, Math.round(parsed.score))),
       status: parsed.status,
       missingRequired: Array.isArray(parsed.missingRequired)
-        ? parsed.missingRequired.filter((item): item is string => typeof item === "string").slice(0, 5)
+        ? parsed.missingRequired
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       partialRequired: Array.isArray(parsed.partialRequired)
-        ? parsed.partialRequired.filter((item): item is string => typeof item === "string").slice(0, 5)
+        ? parsed.partialRequired
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       matchedSections:
         parsed.matchedSections && typeof parsed.matchedSections === "object"
           ? (parsed.matchedSections as Record<string, number>)
           : {},
       referenceUsed: Array.isArray(parsed.referenceUsed)
-        ? parsed.referenceUsed.filter((item): item is string => typeof item === "string").slice(0, 5)
+        ? parsed.referenceUsed
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       humanInputNeeded: Array.isArray(parsed.humanInputNeeded)
-        ? parsed.humanInputNeeded.filter((item): item is string => typeof item === "string").slice(0, 5)
+        ? parsed.humanInputNeeded
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       repairableRequired: Array.isArray(parsed.repairableRequired)
-        ? parsed.repairableRequired.filter((item): item is string => typeof item === "string").slice(0, 5)
+        ? parsed.repairableRequired
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       autoRewriteApplied:
         typeof parsed.autoRewriteApplied === "boolean"
           ? parsed.autoRewriteApplied
           : undefined,
-      wordingGapsAfterAutoRewrite: Array.isArray(parsed.wordingGapsAfterAutoRewrite)
-        ? parsed.wordingGapsAfterAutoRewrite.filter((item): item is string => typeof item === "string").slice(0, 5)
+      wordingGapsAfterAutoRewrite: Array.isArray(
+        parsed.wordingGapsAfterAutoRewrite,
+      )
+        ? parsed.wordingGapsAfterAutoRewrite
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 5)
         : [],
       evidenceFit:
         parsed.evidenceFit && typeof parsed.evidenceFit === "object"
@@ -577,7 +593,8 @@ function parseResumeAlignmentReport(raw: string | null): ResumeAlignmentReport |
 function needsAlignmentRepair(job: Job): boolean {
   const report = parseResumeAlignmentReport(job.resumeAlignmentReport);
   if (!report) return true;
-  if (report.engineVersion !== SEMANTIC_QUALIFICATION_ENGINE_VERSION) return true;
+  if (report.engineVersion !== SEMANTIC_QUALIFICATION_ENGINE_VERSION)
+    return true;
   return report.status !== "pass" || report.score < 90;
 }
 
@@ -661,7 +678,9 @@ export async function summarizeJob(
           tailoredHeadline = tailoringResult.data.headline;
           tailoredSkills = JSON.stringify(tailoringResult.data.skills);
           tailoredExperience = JSON.stringify(tailoringResult.data.experience);
-          jdKeywordProfile = JSON.stringify(tailoringResult.data.jdKeywordProfile);
+          jdKeywordProfile = JSON.stringify(
+            tailoringResult.data.jdKeywordProfile,
+          );
           jdQualificationProfile = JSON.stringify(
             tailoringResult.data.jdQualificationProfile,
           );
@@ -813,9 +832,14 @@ export async function generateFinalPdf(
       if (!updatedJob) return { success: false, error: "Job not found" };
 
       if (needsAlignmentRepair(updatedJob)) {
-        jobLogger.info("Stored resume alignment is low; running forced JD repair before materials generation", {
-          alignment: parseResumeAlignmentReport(updatedJob.resumeAlignmentReport),
-        });
+        jobLogger.info(
+          "Stored resume alignment is low; running forced JD repair before materials generation",
+          {
+            alignment: parseResumeAlignmentReport(
+              updatedJob.resumeAlignmentReport,
+            ),
+          },
+        );
         const repairSummary = await summarizeJob(jobId, {
           force: true,
           requestOrigin: options?.requestOrigin ?? null,
@@ -825,9 +849,12 @@ export async function generateFinalPdf(
           updatedJob = await jobsRepo.getJobById(jobId);
           if (!updatedJob) return { success: false, error: "Job not found" };
         } else {
-          jobLogger.warn("Forced JD alignment repair failed before materials generation", {
-            error: repairSummary.error,
-          });
+          jobLogger.warn(
+            "Forced JD alignment repair failed before materials generation",
+            {
+              error: repairSummary.error,
+            },
+          );
         }
       }
 
@@ -908,9 +935,12 @@ export async function generateFinalPdf(
       );
 
       if (!pdfResult.success && pdfResult.domainGateResiduals?.length) {
-        jobLogger.warn("PDF domain gate blocked draft; running one repair pass", {
-          residuals: pdfResult.domainGateResiduals,
-        });
+        jobLogger.warn(
+          "PDF domain gate blocked draft; running one repair pass",
+          {
+            residuals: pdfResult.domainGateResiduals,
+          },
+        );
         const profile = await getProfile();
         const repairResult = await generateTailoring(
           updatedJob.jobDescription || "",
@@ -1060,7 +1090,8 @@ export async function generateFinalPdf(
       });
 
       const analyticsOrigin = options?.analyticsOrigin ?? "move_to_ready";
-      const generationKind = updatedJob.status === "ready" ? "regenerate" : "initial";
+      const generationKind =
+        updatedJob.status === "ready" ? "regenerate" : "initial";
       void trackServerProductEvent(
         "resume_generated",
         {
@@ -1093,9 +1124,12 @@ export async function generateFinalPdf(
       }
 
       if (materialWarnings.length > 0) {
-        jobLogger.warn("Resume materials generated with optional PDF warnings", {
-          warnings: materialWarnings,
-        });
+        jobLogger.warn(
+          "Resume materials generated with optional PDF warnings",
+          {
+            warnings: materialWarnings,
+          },
+        );
       }
       return { success: true };
     } catch (error) {
@@ -1165,7 +1199,9 @@ function fillEmptyExperienceBulletsFromProfile(
         return [
           item.id,
           extractFallbackExperienceBullets(
-            stripHtml([item.summary, record.description].filter(Boolean).join("\n")),
+            stripHtml(
+              [item.summary, record.description].filter(Boolean).join("\n"),
+            ),
           ),
         ] as const;
       }) ?? [],
@@ -1173,10 +1209,13 @@ function fillEmptyExperienceBulletsFromProfile(
 
   return experience
     .map((item) => {
-      const bullets = item.bullets.map((bullet) => bullet.trim()).filter(Boolean);
+      const bullets = item.bullets
+        .map((bullet) => bullet.trim())
+        .filter(Boolean);
       return {
         ...item,
-        bullets: bullets.length > 0 ? bullets : (fallbackById.get(item.id) ?? []),
+        bullets:
+          bullets.length > 0 ? bullets : (fallbackById.get(item.id) ?? []),
       };
     })
     .filter((item) => item.bullets.length > 0);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import type { ResumeGenerationDecision } from "@shared/resume-generation-decision.js";
 import type {
   ExperienceCapabilityDigest,
   JdKeywordProfile,
@@ -6,7 +6,7 @@ import type {
   ResumeProfile,
   SelectedResumeEvidence,
 } from "@shared/types";
-import type { ResumeGenerationDecision } from "@shared/resume-generation-decision.js";
+import { describe, expect, it } from "vitest";
 import { buildResumeContentPlan } from "./resume-content-plan";
 
 const keywordProfile: JdKeywordProfile = {
@@ -77,7 +77,7 @@ const profile: ResumeProfile = {
       items: [
         {
           id: "exp-city",
-          company: "City of Mississauga",
+          company: "Example Municipality",
           position: "Graduate Consultant",
           location: "Mississauga",
           date: "2024",
@@ -118,7 +118,7 @@ const selectedEvidence: SelectedResumeEvidence[] = [
         section: "experience",
         roleFamily: "data_analytics_operations",
         rawText:
-          "City of Mississauga: Built dashboard reporting and program evaluation analysis.",
+          "Example Municipality: Built dashboard reporting and program evaluation analysis.",
         keywords: ["dashboard", "program evaluation"],
       },
     ],
@@ -161,7 +161,7 @@ const selectedEvidence: SelectedResumeEvidence[] = [
 
 const cityDigest: ExperienceCapabilityDigest = {
   experienceId: "exp-city",
-  label: "Graduate Consultant at City of Mississauga",
+  label: "Graduate Consultant at Example Municipality",
   fitLevel: "primary",
   capabilitySummary:
     "Built dashboard reporting, program evaluation analysis, and stakeholder-ready public-sector deliverables.",
@@ -205,15 +205,19 @@ describe("resume content plan", () => {
     });
 
     expect(
-      plan.requirementTiers.find((item) => item.requirementId === "req-dashboard")
-        ?.tier,
+      plan.requirementTiers.find(
+        (item) => item.requirementId === "req-dashboard",
+      )?.tier,
     ).toBe("core");
     expect(
-      plan.experienceAllocations.find((item) => item.experienceId === "exp-city")
-        ?.kind,
+      plan.experienceAllocations.find(
+        (item) => item.experienceId === "exp-city",
+      )?.kind,
     ).toBe("primary");
     expect(plan.bulletBudgets["exp-city"]).toBeGreaterThanOrEqual(6);
-    expect(plan.experienceAllocations[0].requiredBulletThemes?.length).toBeGreaterThanOrEqual(4);
+    expect(
+      plan.experienceAllocations[0].requiredBulletThemes?.length,
+    ).toBeGreaterThanOrEqual(4);
   });
 
   it("limits transferable evidence and blocks unsupported claims", () => {
@@ -233,8 +237,9 @@ describe("resume content plan", () => {
         ?.bulletBudget,
     ).toBe(1);
     expect(
-      plan.requirementTiers.find((item) => item.requirementId === "req-salesforce")
-        ?.tier,
+      plan.requirementTiers.find(
+        (item) => item.requirementId === "req-salesforce",
+      )?.tier,
     ).toBe("blocked");
     expect(plan.blockedClaims).toContain("Salesforce administration");
   });
@@ -260,14 +265,18 @@ describe("resume content plan", () => {
     });
 
     expect(twoPage.sectionBudgets.experienceBullets.max).toBe(
-      twoPage.experienceAllocations.reduce((sum, item) => sum + item.bulletBudget, 0),
+      twoPage.experienceAllocations.reduce(
+        (sum, item) => sum + item.bulletBudget,
+        0,
+      ),
     );
     expect(onePage.sectionBudgets.experienceBullets.max).toBe(
-      onePage.experienceAllocations.reduce((sum, item) => sum + item.bulletBudget, 0),
+      onePage.experienceAllocations.reduce(
+        (sum, item) => sum + item.bulletBudget,
+        0,
+      ),
     );
-    expect(twoPage.sectionBudgets.skillGroups.max).toBeGreaterThan(
-      0,
-    );
+    expect(twoPage.sectionBudgets.skillGroups.max).toBeGreaterThan(0);
     expect(twoPage.sectionBudgets.skillGroups.max).toBe(3);
     expect(twoPage.pageFillTarget?.mode).toBe("full_two_page");
     expect(twoPage.densityTargets?.minRelevantBundleCandidates).toBe(15);
@@ -288,7 +297,8 @@ describe("resume content plan", () => {
               position: "Strategy Analyst",
               location: "Toronto",
               date: "2025",
-              summary: "Owned mixed research, reporting, and stakeholder deliverables.",
+              summary:
+                "Owned mixed research, reporting, and stakeholder deliverables.",
               visible: true,
             },
             {
@@ -297,7 +307,8 @@ describe("resume content plan", () => {
               position: "Operations Analyst",
               location: "Toronto",
               date: "2024",
-              summary: "Managed operational analysis and internal process documentation.",
+              summary:
+                "Managed operational analysis and internal process documentation.",
               visible: true,
             },
             {
@@ -352,7 +363,9 @@ describe("resume content plan", () => {
       expect(allocation.bulletBudget).toBeGreaterThanOrEqual(4);
     }
     expect(plan.experienceAllocations[3]?.kind).toBe("background");
-    expect(plan.experienceAllocations[3]?.bulletBudget).toBeGreaterThanOrEqual(5);
+    expect(plan.experienceAllocations[3]?.bulletBudget).toBeGreaterThanOrEqual(
+      5,
+    );
     expect(plan.pageFillTarget?.mode).toBe("full_two_page");
     expect(plan.densityTargets?.minRelevantBundleCandidates).toBe(15);
   });
@@ -382,7 +395,10 @@ describe("resume content plan", () => {
     expect(allocation?.fitLevel).toBe("relevant");
     expect(allocation?.bulletBudget).toBe(5);
     expect(plan.sectionBudgets.experienceBullets.min).toBe(
-      plan.experienceAllocations.reduce((sum, item) => sum + item.bulletBudget, 0),
+      plan.experienceAllocations.reduce(
+        (sum, item) => sum + item.bulletBudget,
+        0,
+      ),
     );
   });
 
@@ -436,7 +452,9 @@ describe("resume content plan", () => {
 
     expect(plan.pageFillTarget?.mode).toBe("full_two_page");
     expect(plan.densityTargets?.minExperienceWords).toBeGreaterThanOrEqual(620);
-    expect(plan.densityTargets?.minAverageBulletWords).toBeGreaterThanOrEqual(26);
+    expect(plan.densityTargets?.minAverageBulletWords).toBeGreaterThanOrEqual(
+      26,
+    );
     expect(plan.densityTargets?.minRelevantBundleCandidates).toBe(15);
     expect(plan.bulletBundleCandidates?.length ?? 0).toBeGreaterThanOrEqual(0);
   });
@@ -452,7 +470,13 @@ describe("resume content plan", () => {
         "Use Excel, SQL, and dashboard tools for analysis",
       ],
       preferred: ["Translate research into recommendations"],
-      keywords: ["market intelligence", "ecosystem", "reports", "trend", "dashboard"],
+      keywords: [
+        "market intelligence",
+        "ecosystem",
+        "reports",
+        "trend",
+        "dashboard",
+      ],
       confidence: "high",
       requirements: [
         "Conduct market intelligence research",
@@ -477,38 +501,41 @@ describe("resume content plan", () => {
         experience: {
           items: [
             {
-              id: "exp-opus",
+              id: "exp-research",
               company: "Regional Research Consultancy",
               position: "Consultant",
               location: "Toronto",
               date: "2025",
-              summary: "Market intelligence, stakeholder reporting, trend analysis, and recommendations.",
+              summary:
+                "Market intelligence, stakeholder reporting, trend analysis, and recommendations.",
               visible: true,
             },
             {
-              id: "exp-idea",
+              id: "exp-program",
               company: "Municipal Innovation Hub",
               position: "Research Analyst",
               location: "Mississauga",
               date: "2024",
-              summary: "Startup ecosystem data, program evaluation, dashboards, and stakeholder briefs.",
+              summary:
+                "Startup ecosystem data, program evaluation, dashboards, and stakeholder briefs.",
               visible: true,
             },
             {
-              id: "exp-vz",
-              company: "Vision Zero",
+              id: "exp-analytics",
+              company: "Mobility Analytics Program",
               position: "Data Analyst",
               location: "Toronto",
               date: "2023",
-              summary: "Excel, SQL, dashboard tools, performance tracking, and decision support.",
+              summary:
+                "Excel, SQL, dashboard tools, performance tracking, and decision support.",
               visible: true,
             },
           ],
         },
       },
     };
-    const richEvidence: SelectedResumeEvidence[] = richRequirements.requirements!.map(
-      (requirement, index) => ({
+    const richEvidence: SelectedResumeEvidence[] =
+      richRequirements.requirements!.map((requirement, index) => ({
         requirement: requirement.text,
         requirementId: requirement.id,
         category: requirement.category,
@@ -521,36 +548,43 @@ describe("resume content plan", () => {
           `${requirement.text} for stakeholder decisions`,
         ],
         blockedClaims: [],
-        chunks: ["exp-opus", "exp-idea", "exp-vz"].map((experienceId, chunkIndex) => ({
-          chunkId: `${requirement.id}-chunk-${chunkIndex + 1}`,
-          sourceFile: "Master Resume.docx",
-          relativePath: "Master Resume.docx",
-          section: "experience",
-          roleFamily: "market_insights_research",
-          rawText: `${experienceId} evidence: ${requirement.text} with source-backed methods and outputs.`,
-          keywords: requirement.text.toLowerCase().split(/\s+/).slice(0, 5),
-        })),
-      }),
-    );
-    const richDigests: ExperienceCapabilityDigest[] = ["exp-opus", "exp-idea", "exp-vz"].map(
-      (experienceId, index) => ({
-        experienceId,
-        label: `${experienceId} role`,
-        fitLevel: index === 0 ? "primary" : "relevant",
-        capabilitySummary: "Rich market intelligence and analysis experience.",
-        coreClaims: richRequirements.requirements!.map(
-          (requirement) => `${requirement.text} in ${experienceId}`,
+        chunks: ["exp-research", "exp-program", "exp-analytics"].map(
+          (experienceId, chunkIndex) => ({
+            chunkId: `${requirement.id}-chunk-${chunkIndex + 1}`,
+            sourceFile: "Master Resume.docx",
+            relativePath: "Master Resume.docx",
+            section: "experience",
+            roleFamily: "market_insights_research",
+            rawText: `${experienceId} evidence: ${requirement.text} with source-backed methods and outputs.`,
+            keywords: requirement.text.toLowerCase().split(/\s+/).slice(0, 5),
+          }),
         ),
-        transferableClaims: [],
-        matchedRequirementIds: richRequirements.requirements!.map((requirement) => requirement.id),
-        recommendedBulletThemes: richRequirements.requirements!.map((requirement) => requirement.text),
-        sourceChunkIds: richRequirements.requirements!.map(
-          (requirement) => `${requirement.id}-chunk-${index + 1}`,
-        ),
-        blockedClaims: [],
-        confidence: "high",
-      }),
-    );
+      }));
+    const richDigests: ExperienceCapabilityDigest[] = [
+      "exp-research",
+      "exp-program",
+      "exp-analytics",
+    ].map((experienceId, index) => ({
+      experienceId,
+      label: `${experienceId} role`,
+      fitLevel: index === 0 ? "primary" : "relevant",
+      capabilitySummary: "Rich market intelligence and analysis experience.",
+      coreClaims: richRequirements.requirements!.map(
+        (requirement) => `${requirement.text} in ${experienceId}`,
+      ),
+      transferableClaims: [],
+      matchedRequirementIds: richRequirements.requirements!.map(
+        (requirement) => requirement.id,
+      ),
+      recommendedBulletThemes: richRequirements.requirements!.map(
+        (requirement) => requirement.text,
+      ),
+      sourceChunkIds: richRequirements.requirements!.map(
+        (requirement) => `${requirement.id}-chunk-${index + 1}`,
+      ),
+      blockedClaims: [],
+      confidence: "high",
+    }));
 
     const plan = buildResumeContentPlan({
       profile: richProfile,
@@ -559,7 +593,11 @@ describe("resume content plan", () => {
         ...keywordProfile,
         roleFamily: "market_insights_research",
         requiredKeywords: ["market intelligence", "ecosystem", "dashboard"],
-        experienceFocus: ["market intelligence", "trend analysis", "stakeholder reports"],
+        experienceFocus: [
+          "market intelligence",
+          "trend analysis",
+          "stakeholder reports",
+        ],
       },
       selectedEvidence: richEvidence,
       experienceDigests: richDigests,
@@ -568,11 +606,16 @@ describe("resume content plan", () => {
     });
 
     expect(plan.bulletBundleCandidates?.length ?? 0).toBeGreaterThanOrEqual(15);
-    expect(plan.bulletBundleCandidates?.every((bundle) => bundle.sourceChunkIds.length > 0)).toBe(
-      true,
-    );
     expect(
-      plan.bulletBundleCandidates?.some((bundle) => bundle.fit === "direct" && bundle.recommendedDepth === "deep"),
+      plan.bulletBundleCandidates?.every(
+        (bundle) => bundle.sourceChunkIds.length > 0,
+      ),
+    ).toBe(true);
+    expect(
+      plan.bulletBundleCandidates?.some(
+        (bundle) =>
+          bundle.fit === "direct" && bundle.recommendedDepth === "deep",
+      ),
     ).toBe(true);
   });
 });

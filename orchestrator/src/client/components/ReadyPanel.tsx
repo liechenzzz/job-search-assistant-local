@@ -28,8 +28,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { uploadJobPdfFromFile } from "@/client/lib/job-pdf-upload";
 import {
-  downloadJobPdf,
   downloadJobHtmlResume,
+  downloadJobPdf,
   downloadJobWordDraft,
   openJobHtmlResume,
   openJobPdf,
@@ -216,7 +216,9 @@ export const ReadyPanel: React.FC<ReadyPanelProps> = ({
     if (!job) return;
     void downloadJobHtmlResume(job.id, htmlFilename).catch((error) => {
       toast.error(
-        error instanceof Error ? error.message : "Could not download HTML resume",
+        error instanceof Error
+          ? error.message
+          : "Could not download HTML resume",
       );
     });
   }, [job, htmlFilename]);
@@ -312,7 +314,9 @@ export const ReadyPanel: React.FC<ReadyPanelProps> = ({
 
     try {
       setIsRegenerating(true);
-      toast.message("Repairing resume from JD + reference evidence if needed...");
+      toast.message(
+        "Repairing resume from JD + reference evidence if needed...",
+      );
       await api.generateJobPdf(job.id);
       trackProductEvent("jobs_job_action_completed", {
         action: "generate_pdf",
@@ -407,7 +411,9 @@ export const ReadyPanel: React.FC<ReadyPanelProps> = ({
     if (!job) return;
     try {
       setIsRegenerating(true);
-      toast.message("Repairing resume from JD + reference evidence if needed...");
+      toast.message(
+        "Repairing resume from JD + reference evidence if needed...",
+      );
       await api.generateJobPdf(job.id);
       trackProductEvent("jobs_job_action_completed", {
         action: "generate_pdf",

@@ -323,10 +323,7 @@ export type ResumeQualificationEvidenceStatus =
   | "direct"
   | "transferable"
   | "none";
-export type ResumeQualificationEvidenceSource =
-  | "master"
-  | "reference"
-  | "none";
+export type ResumeQualificationEvidenceSource = "master" | "reference" | "none";
 
 export interface ResumeCoveragePlanItem {
   qualification: string;
@@ -414,8 +411,7 @@ export const JOB_AVAILABILITY_STATUSES = [
   "unknown",
 ] as const;
 
-export type JobAvailabilityStatus =
-  (typeof JOB_AVAILABILITY_STATUSES)[number];
+export type JobAvailabilityStatus = (typeof JOB_AVAILABILITY_STATUSES)[number];
 
 export interface AppliedDuplicateMatch {
   jobId: string;
